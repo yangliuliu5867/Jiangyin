@@ -13,8 +13,8 @@ using namespace std;
 
 
 static int cmd = -1;
-static Eigen::Vector3d pos_vision, pos_aft, pos_local;
-static Eigen::Vector3d euler_vision, euler_aft, euler_local;
+static Eigen::Vector3d pos_fcu, pos_vio;
+static Eigen::Vector3d euler_fcu, euler_vio;
 
 
 /**
@@ -24,9 +24,9 @@ static Eigen::Vector3d euler_vision, euler_aft, euler_local;
  */
 void Pose_Callback(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
-    pos_local = Eigen::Vector3d(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+    pos_fcu = Eigen::Vector3d(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
     Eigen::Quaterniond q(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
-    euler_local = QuatToEuler(q);
+    euler_fcu = QuatToEuler(q);
 }
 
 
@@ -37,23 +37,9 @@ void Pose_Callback(const geometry_msgs::PoseStamped::ConstPtr &msg)
  */
 void Odom_Callback(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
-    pos_vision = Eigen::Vector3d(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+    pos_vio = Eigen::Vector3d(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
     Eigen::Quaterniond q(msg->pose.orientation.w, msg->pose.orientation.x, msg->pose.orientation.y, msg->pose.orientation.z);
-    euler_vision = QuatToEuler(q);
-}
-
-
-/**
- * @brief  lidar odometry subscriber callback
- * @param  msg: nav_msgs::Odometry from Point-LIO
- * @return NULL
- */
-void Aft_Callback(const nav_msgs::Odometry::ConstPtr &msg)
-{
-    pos_aft = Eigen::Vector3d(msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z);
-    Eigen::Quaterniond q(msg->pose.pose.orientation.w, msg->pose.pose.orientation.x,
-                         msg->pose.pose.orientation.y, msg->pose.pose.orientation.z);
-    euler_aft = QuatToEuler(q);
+    euler_vio = QuatToEuler(q);
 }
 
 
@@ -202,8 +188,6 @@ int main(int argc, char **argv)
         ("/mavros/local_position/pose", 1, Pose_Callback);
     ros::Subscriber odom_suber = nh.subscribe<geometry_msgs::PoseStamped>
         ("/mavros/vision_pose/pose", 1, Odom_Callback);
-    ros::Subscriber aft_suber = nh.subscribe<nav_msgs::Odometry>
-        ("/aft_mapped_to_init", 1, Aft_Callback);
     
     new thread(&CmdListener);
     new thread(&UdpServer, "127.0.0.1", 12001, 1);
@@ -217,7 +201,7 @@ int main(int argc, char **argv)
     ros::Rate rate(10.0);
     while(ros::ok())
     {
-        for(int i = 0; i < 9; i++) {cout << "\033[A";}
+        for(int i = 0; i < 8; i++) {cout << "\033[A";}
 
         cout.setf(ios::fixed);             // 固定的浮点显示
         cout << setprecision(3);           // 固定显示精度为2位
@@ -227,14 +211,11 @@ int main(int argc, char **argv)
         cout << "\r" << "\x1B[0K";
         cout  << ">>>>>>>>>>>>>>>>>>>>>>>>>>>- Pose Info -<<<<<<<<<<<<<<<<<<<<<<<<<<<"  << endl;
         cout << "\r" << "\x1B[0K";
-        cout << "[VISIONPOSITION] x: " << pos_vision(0) << "(m)   y: " << pos_vision(1) << "(m)   z: " << pos_vision(2)
-             << "(m)   yaw: " << euler_vision(2)*180.0/M_PI << "(deg)" << endl;
+        cout << "[FCU] x: " << pos_fcu(0) << "(m)   y: " << pos_fcu(1) << "(m)   z: " << pos_fcu(2)
+             << "(m)   yaw: " << euler_fcu(2)*180.0/M_PI << "(deg)" << endl;
         cout << "\r" << "\x1B[0K";
-        cout << "[AFT] x: " << pos_aft(0) << "(m)   y: " << pos_aft(1) << "(m)   z: " << pos_aft(2)
-             << "(m)   yaw: " << euler_aft(2)*180.0/M_PI << "(deg)" << endl;
-        cout << "\r" << "\x1B[0K";
-        cout << "[LOCALPOSITION] x: " << pos_local(0) << "(m)   y: " << pos_local(1) << "(m)   z: " << pos_local(2)
-             << "(m)   yaw: " << euler_local(2)*180.0/M_PI << "(deg)" << endl;
+        cout << "[VIO] x: " << pos_vio(0) << "(m)   y: " << pos_vio(1) << "(m)   z: " << pos_vio(2)
+             << "(m)   yaw: " << euler_vio(2)*180.0/M_PI << "(deg)" << endl;
         cout << "\r" << "\x1B[0K";
         cout << ">>>>>>>>>>>>>>>>>>>>>>>>>>>- User Info -<<<<<<<<<<<<<<<<<<<<<<<<<<<" << endl;
         cout << "\r" << "\x1B[0K";
