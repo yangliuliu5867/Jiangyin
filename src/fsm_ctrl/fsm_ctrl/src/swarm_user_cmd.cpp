@@ -197,6 +197,11 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "swarm_user_cmd");
     ros::NodeHandle nh("~");
+    double pose_info_rate;
+    nh.param("pose_info_rate", pose_info_rate, 10.0);
+    if (pose_info_rate <= 0.0) pose_info_rate = 10.0;
+    ros::AsyncSpinner spinner(2);
+    spinner.start();
 
     ros::Subscriber pose_suber = nh.subscribe<geometry_msgs::PoseStamped>
         ("/mavros/local_position/pose", 1, Pose_Callback);
@@ -214,7 +219,7 @@ int main(int argc, char **argv)
     
     for(int i = 0; i < 9; i++) {cout << endl;}
     
-    ros::Rate rate(10.0);
+    ros::Rate rate(pose_info_rate);
     while(ros::ok())
     {
         for(int i = 0; i < 9; i++) {cout << "\033[A";}
@@ -257,7 +262,6 @@ int main(int argc, char **argv)
         cout << "Enter User Command: " << endl;
         
         if(cmd == 0) {break;}
-        ros::spinOnce();
         rate.sleep();
     }
     return 0;

@@ -98,7 +98,7 @@ void Lidar_Callback(const nav_msgs::Odometry::ConstPtr &msg)
         vision_pose.pose.orientation.x = quat_lidar.x();
         vision_pose.pose.orientation.y = quat_lidar.y();
         vision_pose.pose.orientation.z = quat_lidar.z();
-        is_source_new = true;
+        vision_pub.publish(vision_pose);
     }
 }
 
@@ -189,11 +189,12 @@ int main(int argc, char **argv)
 
     /* publisher */
     ros::Publisher ready_pub = nh.advertise<std_msgs::Bool>("/fsm_ctrl/ekf_ready", 1);
-    ros::Publisher vision_pub = nh.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 1);
+    vision_pub = nh.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 1);
     
     /* subscriber */
-    ros::Subscriber mocap_sub = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/jy0/pose", 1, Mocap_Callback);
-    ros::Subscriber lidar_sub = nh.subscribe<nav_msgs::Odometry>("/aft_mapped_to_init", 1, Lidar_Callback);    
+    ros::NodeHandle pnh("~");
+    ros::Subscriber mocap_sub = pnh.subscribe<geometry_msgs::PoseStamped>("mocap_pose", 1, Mocap_Callback);
+    ros::Subscriber lidar_sub = pnh.subscribe<nav_msgs::Odometry>("lidar_odom", 100, Lidar_Callback);    
     ros::Subscriber camera_sub = nh.subscribe<nav_msgs::Odometry>("camera_odom", 1, Camera_Callback);
     ros::Subscriber ranger_sub = nh.subscribe<sensor_msgs::Range>("/tfmini", 1, Ranger_Callback);
     ros::Subscriber pose_sub = nh.subscribe<geometry_msgs::PoseStamped>("/mavros/local_position/pose", 10, Pose_Callback);

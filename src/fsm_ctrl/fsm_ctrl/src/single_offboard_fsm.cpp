@@ -229,24 +229,8 @@ int main(int argc, char **argv)
                 offboard_mode,
                 arm_command,
                 last_request);
-
-            if (takeoff_channel > kRcThreshold)
-            {
-                mavros_msgs::AttitudeTarget takeoff_setpoint;
-                takeoff_setpoint.header.frame_id = "FCU";
-                takeoff_setpoint.type_mask =
-                    mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE |
-                    mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE |
-                    mavros_msgs::AttitudeTarget::IGNORE_YAW_RATE;
-                takeoff_setpoint.orientation.w = 1.0;
-                takeoff_setpoint.thrust = 0.05;
-                attitude_publisher.publish(takeoff_setpoint);
-            }
-            else
-            {
                 SetPosition(0.0, 0.0, 0.4);
                 position_publisher.publish(position_setpoint);
-            }
             break;
 
         case 4:

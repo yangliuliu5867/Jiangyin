@@ -49,6 +49,7 @@ static bool is_source_new = false;
 static int flag_vision_source = 0;
 std_msgs::Bool ekf_ready;
 geometry_msgs::PoseStamped vision_pose;
+ros::Publisher vision_pub;
 
 
 /* Callback */
