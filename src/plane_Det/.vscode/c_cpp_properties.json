@@ -1,0 +1,40 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/flag/flag-2024-jiangyin/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/flag/flag-2024-jiangyin/src/apriltag_echo_message/include/**",
+        "/home/flag/flag-2024-jiangyin/src/apriltag_ros/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/planner/drone_detect/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/planner/plan_manage/include/**",
+        "/home/flag/flag-2024-jiangyin/src/fsm_ctrl/fsm_ctrl/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/uav_simulator/mockamap/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/planner/path_searching/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/planner/plan_env/include/**",
+        "/home/flag/flag-2024-jiangyin/src/plane_Det/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/Utils/pose_utils/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/Utils/quadrotor_msgs/include/**",
+        "/home/flag/flag-2024-jiangyin/src/RA-LIO/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/Utils/selected_points_publisher/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/uav_simulator/so3_control/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/uav_simulator/so3_quadrotor_simulator/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/planner/swarm_bridge/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/planner/traj_opt/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/planner/traj_utils/include/**",
+        "/home/flag/flag-2024-jiangyin/src/ego-planner-v2/Utils/uav_utils/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

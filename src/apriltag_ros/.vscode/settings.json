@@ -1,0 +1,18 @@
+{
+    "python.autoComplete.extraPaths": [
+        "/home/walker/ros/apriltag_ws/devel/lib/python3/dist-packages",
+        "/home/walker/ros/mpc_ws/devel/lib/python3/dist-packages",
+        "/home/walker/ros/webots_ws/devel/lib/python3/dist-packages",
+        "/home/walker/ros/radar_ws/devel/lib/python3/dist-packages",
+        "/home/walker/ros/ros_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ],
+    "python.analysis.extraPaths": [
+        "/home/walker/ros/apriltag_ws/devel/lib/python3/dist-packages",
+        "/home/walker/ros/mpc_ws/devel/lib/python3/dist-packages",
+        "/home/walker/ros/webots_ws/devel/lib/python3/dist-packages",
+        "/home/walker/ros/radar_ws/devel/lib/python3/dist-packages",
+        "/home/walker/ros/ros_ws/devel/lib/python3/dist-packages",
+        "/opt/ros/noetic/lib/python3/dist-packages"
+    ]
+}

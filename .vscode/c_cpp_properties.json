@@ -1,0 +1,46 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/flag/备份/flagjiangyin_ws0703/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/apriltag_echo_message/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/apriltag_ros/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/planner/drone_detect/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/dual_ergodic_pkg/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/planner/plan_manage/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/fsm_ctrl/fsm_ctrl/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/SUPER/mars_uav_sim/marsim_render/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/SUPER/mission_planner/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/uav_simulator/mockamap/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/planner/path_searching/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/SUPER/mars_uav_sim/perfect_drone_sim/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/planner/plan_env/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/plane_Det/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/Utils/pose_utils/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/Utils/quadrotor_msgs/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/RA-LIO/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/SUPER/rog_map/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/Utils/selected_points_publisher/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/uav_simulator/so3_control/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/uav_simulator/so3_quadrotor_simulator/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/SUPER/super_planner/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/planner/swarm_bridge/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/planner/traj_opt/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/planner/traj_utils/include/**",
+        "/home/flag/备份/flagjiangyin_ws0703/src/ego-planner-v2/Utils/uav_utils/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}
