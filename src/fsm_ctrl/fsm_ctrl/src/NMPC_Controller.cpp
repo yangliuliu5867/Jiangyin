@@ -27,7 +27,7 @@ NMPC_Ctrller_simple::NMPC_Ctrller_simple(double _ctrl_T,
     NLP_costR_w = _NLP_costR_w;
     NLP_costR_acc_z = _NLP_costR_acc_z;
 
-    thr_est.Set_Estor(50, 0.196);
+    thr_est.Set_Estor(50, 0.23);
 
     // 初始化初始猜测值
     for (int i = 0; i < NLP_input_num * NLP_predict_step; i++)

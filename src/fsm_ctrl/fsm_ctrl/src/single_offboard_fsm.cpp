@@ -72,7 +72,7 @@ static int yaw_print_count = 0;
 
 static vector<TypePoint> Ego_traj;
 static int Ego_traj_count = 0;                     // 当前飞往点的标号
-static int Ego_traj_size = 2;
+static int Ego_traj_size = 4;
 static bool need_GeneTraj = true;                 // 是否需要修改轨迹
 
 //存放历史一段时间内的位姿
@@ -1117,10 +1117,10 @@ void EgoAddPoint(int _id, int _mode, int _is_map, double _x, double _y, double _
 void EgoGeneTraj()
 {
     Ego_traj.clear();
-    EgoAddPoint(0, 2, 0, 4.0, 0, 0.6, 0.0, 5);
-    EgoAddPoint(1, 0, 1, 0.0, 0, 0.6, 0.0, 5);
-    EgoAddPoint(2, 2, 0, 4.0, 1.0, 0.6, 0.0, 5);
-    EgoAddPoint(3, 2, 0, 4.0, -1.0, 0.6, 0.0, 5);
+    EgoAddPoint(0, 1, 0, 4.0, 0, 0.6, 0.0, 5);
+    EgoAddPoint(1, 1, 0, 6.0, 0, 0.6, 0.0, 5);
+    EgoAddPoint(2, 1, 0, 4.0, 0.0, 0.6, 0.0, 5);
+    EgoAddPoint(3, 1, 0, 0.0, 0.0, 0.6, 0.0, 5);
     EgoAddPoint(4, 2, 0, 3.0, 0, 0.6, 0.0, 5);
     EgoAddPoint(5, 2, 0, 0.0, 0, 0.6, 0.0, 5);
 

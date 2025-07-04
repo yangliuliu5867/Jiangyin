@@ -300,7 +300,7 @@ namespace fsm {
             getOnePositionCommand(pid_cmd_, traj_finish_);
             if (traj_finish_) {
                 cout << GREEN << " -- [Fsm] Traj finish." << RESET << endl;
-                if (closeToGoal(0.1)) {
+                if (closeToGoal(0.2)) {
                     ChangeState("getPoseFromTraj", WAIT_GOAL);
                 } else {
                     ChangeState("getPoseFromTraj", GENERATE_TRAJ);
@@ -451,7 +451,7 @@ namespace fsm {
             nmpc_cmd_pub_.publish(nmpc_cmd_);
             if (traj_finish_) {
                 cout << GREEN << " -- [Fsm] Traj finish." << RESET << endl;
-                if (closeToGoal(0.1)) {
+                if (closeToGoal(0.2)) {
                     ChangeState("PubCmdCallback", WAIT_GOAL);
                 } else {
                     ChangeState("PubCmdCallback", GENERATE_TRAJ);

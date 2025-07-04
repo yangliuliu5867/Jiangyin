@@ -58,7 +58,7 @@
         <param name = "nmpc_mR_yaw" type = "double"   value = "0.1" />
 
         <!-- For NMPC -->
-        <!-- <param name = "nmpc_Qposx" type = "double" value = "40.0" />
+        <param name = "nmpc_Qposx" type = "double" value = "40.0" />
         <param name = "nmpc_Qposy" type = "double" value = "40.0" />
         <param name = "nmpc_Qposz" type = "double" value = "40.0" />
         <param name = "nmpc_Qvelx" type = "double" value = "1.0" />
@@ -70,9 +70,9 @@
         <param name = "nmpc_Rwx" type = "double" value = "0.1" />
         <param name = "nmpc_Rwy" type = "double" value = "0.1" />
         <param name = "nmpc_Rwz" type = "double" value = "0.1" />
-        <param name = "nmpc_RtotalF" type = "double" value = "0.1" /> -->
+        <param name = "nmpc_RtotalF" type = "double" value = "0.1" />
 
-        <param name = "nmpc_Qposx" type = "double" value = "20.0" />
+        <!-- <param name = "nmpc_Qposx" type = "double" value = "20.0" />
         <param name = "nmpc_Qposy" type = "double" value = "20.0" />
         <param name = "nmpc_Qposz" type = "double" value = "50.0" />
         <param name = "nmpc_Qvelx" type = "double" value = "1.0" />
@@ -84,7 +84,7 @@
         <param name = "nmpc_Rwx" type = "double" value = "0.1" />
         <param name = "nmpc_Rwy" type = "double" value = "0.1" />
         <param name = "nmpc_Rwz" type = "double" value = "0.1" />
-        <param name = "nmpc_RtotalF" type = "double" value = "0.1" />
+        <param name = "nmpc_RtotalF" type = "double" value = "0.1" /> -->
 
     </node>
 
