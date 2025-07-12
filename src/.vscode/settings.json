@@ -86,6 +86,9 @@
         "dense": "cpp",
         "csetjmp": "cpp",
         "cuchar": "cpp",
-        "shared_mutex": "cpp"
+        "shared_mutex": "cpp",
+        "codecvt": "cpp",
+        "scoped_allocator": "cpp",
+        "any": "cpp"
     }
 }

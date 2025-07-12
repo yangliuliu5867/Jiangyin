@@ -27,7 +27,7 @@ NMPC_Ctrller_simple::NMPC_Ctrller_simple(double _ctrl_T,
     NLP_costR_w = _NLP_costR_w;
     NLP_costR_acc_z = _NLP_costR_acc_z;
 
-    thr_est.Set_Estor(50, 0.23);
+    thr_est.Set_Estor(50, 0.196);
 
     // 初始化初始猜测值
     for (int i = 0; i < NLP_input_num * NLP_predict_step; i++)
@@ -134,8 +134,8 @@ NMPC_Ctrller_simple::NMPC_Ctrller_simple(double _ctrl_T,
     casadi::Dict nlp_opts;
     nlp_opts["expand"] = true;
     nlp_opts["ipopt.max_iter"] = 5000;
-    nlp_opts["ipopt.print_level"] = 0;
-    nlp_opts["print_time"] = 0;
+    nlp_opts["ipopt.print_level"] = 5;
+    nlp_opts["print_time"] = 1;
     nlp_opts["ipopt.acceptable_tol"] = 1e-4;
     nlp_opts["ipopt.acceptable_obj_change_tol"] = 1e-4;
     nlp_opts["ipopt.acceptable_dual_inf_tol"] = 1e-4;

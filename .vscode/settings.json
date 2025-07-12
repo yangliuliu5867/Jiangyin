@@ -74,6 +74,9 @@
         "cinttypes": "cpp",
         "typeindex": "cpp",
         "typeinfo": "cpp",
-        "variant": "cpp"
+        "variant": "cpp",
+        "rope": "cpp",
+        "slist": "cpp",
+        "valarray": "cpp"
     }
 }

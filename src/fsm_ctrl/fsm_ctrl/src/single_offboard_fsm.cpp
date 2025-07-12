@@ -18,6 +18,8 @@ using namespace std;
 
 /*--------------------------- FSM & Control ---------------------------*/
 
+static bool apland = false;
+
 static bool is_udp_enable = true;         // 1: enable receiving udp command  
 static bool is_ready_fly = false;         // 0: wait for EKF pose fusion converging
 static int cmd = 0;
@@ -31,6 +33,7 @@ static bool is_takeoff = false;         // 0: wait for RC confirming
 static bool is_get_planner_msgs = false;
 
 static int takeoff_channel = 0;
+static int emergency_channel = 0;
 
 mavros_msgs::State current_state;
 static double voltage;
@@ -54,12 +57,18 @@ geometry_msgs::PoseStamped aim_pos;          // position xyz + yaw, DO NOT use f
 geometry_msgs::TwistStamped aim_vel;         // velocity xyz + yaw rate, DO NOT use for attitude control   
 mavros_msgs::PositionTarget target_pos;         // position & velocity & acceleration + yaw & yaw rate
 mavros_msgs::AttitudeTarget target_att;         // attitude & body rate + thrust
+geometry_msgs::PoseStamped april_pos; 
 
 vector<CtrlPt> traj_nmpc;
 
+static bool ap_land = false;
+static bool dynamic_ring = false;
+static bool set_dynamic_ring = false;
+static int task1 =0;
+
 /*----------LXK----------*/
-static int task;
-//1密林，2集装箱，3迷宫，4静环，5动环，6动平台
+static int task; 
+//1密林，2集装箱，3迷宫，4静环，5动环，6动平台 
 static int task_print_count = 0;
 static int state2task[] = {1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5};
 static int ego_end_lock = 0;
@@ -72,7 +81,7 @@ static int yaw_print_count = 0;
 
 static vector<TypePoint> Ego_traj;
 static int Ego_traj_count = 0;                     // 当前飞往点的标号
-static int Ego_traj_size = 4;
+static int Ego_traj_size = 11;
 static bool need_GeneTraj = true;                 // 是否需要修改轨迹
 
 //存放历史一段时间内的位姿
@@ -82,11 +91,11 @@ ros::Time ini_time;                                     //位姿初始时间
 static bool is_ini_time = false;                        //是否初始化位姿时间
 
 //tunnel
-static Eigen::Vector3d tunnel_pose1 = {1, 1, 0.6};
+static Eigen::Vector3d tunnel_pose1 = {3.09, -0.08, 1.3};
 static vector<Eigen::Vector3d> tunnel_filter1;
 static Eigen::Vector3d tunnel_pose2 = {25.0, 0.0, 1.6};
 static vector<Eigen::Vector3d> tunnel_filter2;
-static int tunnel_filter_size = 5;
+static int tunnel_filter_size = 12;
 
 //maze
 static Eigen::Vector3d maze_pose1 = {22.0, 11.5, 2.0};
@@ -106,7 +115,7 @@ static Eigen::Vector3d ring3_pose = {7.2, -0.8, 1.0};
 static vector<Eigen::Vector3d> ring3_filter;
 static int ring3_filter_size = 5;
 //ring2
-static Eigen::Vector3d ring2_pose = {12.2, -1.5, 1.6};   
+static Eigen::Vector3d ring2_pose = {11.17, 0.168, 1.65};   
 static vector<Eigen::Vector3d> ring2_filter;
 static int ring2_filter_size = 7;
 static bool is_arrive_ring2 = false;
@@ -127,10 +136,10 @@ static double doublering2_start_time = 0;
 static double doublering1_end_time = 0; 
 static double doublering2_end_time = 0; 
 
-static Eigen::Vector3d double_pose1 = {1.0, 0.0, 1.1};
+static Eigen::Vector3d double_pose1 = {7.57, 1.15, 1.65};
 static vector<Eigen::Vector3d> dou1_filter;
 static int dou1_filter_size = 5;
-static Eigen::Vector3d double_pose2 = {1.0, 2.0, 1.1};
+static Eigen::Vector3d double_pose2 = {7.57, -0.101, 1.65};
 static vector<Eigen::Vector3d> dou2_filter;
 static int dou2_filter_size = 5;
 
@@ -139,7 +148,7 @@ static bool getring2 = false;
 
 
 //apriltag
-static Eigen::Vector3d ap_pose = {0.0, 0.0, 0.0};
+static Eigen::Vector3d ap_pose = {13.935, -0.005, 1.28};
 static vector<Eigen::Vector3d> ap_filter;
 static vector<Eigen::Vector3d> ap_his_pose;
 static int ap_filter_size = 5;
@@ -377,6 +386,7 @@ void IMU_Callback(const sensor_msgs::Imu::ConstPtr &msg)
 void RC_Callback(const mavros_msgs::RCIn::ConstPtr &msg)
 {
     takeoff_channel = msg->channels[8];
+    emergency_channel = msg->channels[9];
     // cout << "takeoff_channel: " << takeoff_channel << endl;
 }
 
@@ -397,7 +407,7 @@ traj_utils::Flag flag_state;//订阅至ego,运行状态信息反馈
 super_msgs::Flag flag_super_msg;//发布至super，飞行点信息
 super_msgs::Flag flag_super_state;//接受自super，规划器运行状态
 
-
+static bool dynamic_ready = false;
 /*----------LXK----------*/
 template <typename T>
 bool MedianFilter(vector<T> &_filter, T _data, int _size, T &result)
@@ -493,13 +503,13 @@ bool MedAveFilter(vector<T> &_filter, T _data, int _size, T &result)
 Eigen::Matrix4d LocalToGlobal(double _x, double _y, double _z, double _roll, double _pitch, double _yaw)
 {
     Eigen::Matrix4d _LTG;
-    _LTG(0, 0) = cos(_pitch) * cos(_yaw);
-    _LTG(0, 1) = sin(_roll) * sin(_pitch) * cos(_yaw) - cos(_roll) * sin(_yaw);
-    _LTG(0, 2) = cos(_roll) * sin(_pitch) * cos(_yaw) + sin(_roll) * sin(_yaw);
-    _LTG(1, 0) = cos(_pitch) * sin(_yaw);
-    _LTG(1, 1) = sin(_roll) * sin(_pitch) * sin(_yaw) + cos(_roll) * cos(_yaw);
-    _LTG(1, 2) = cos(_roll) * sin(_pitch) * sin(_yaw) - sin(_roll) * cos(_yaw);
-    _LTG(2, 0) = -sin(_pitch);
+    _LTG(0, 0) = (cos(_pitch) * cos(_yaw));
+    _LTG(0, 1) = (sin(_roll) * sin(_pitch) * cos(_yaw) - cos(_roll) * sin(_yaw));
+    _LTG(0, 2) = (cos(_roll) * sin(_pitch) * cos(_yaw) + sin(_roll) * sin(_yaw));
+    _LTG(1, 0) = (cos(_pitch) * sin(_yaw));
+    _LTG(1, 1) = (sin(_roll) * sin(_pitch) * sin(_yaw) + cos(_roll) * cos(_yaw));
+    _LTG(1, 2) = (cos(_roll) * sin(_pitch) * sin(_yaw) - sin(_roll) * cos(_yaw));
+    _LTG(2, 0) = sin(_pitch);
     _LTG(2, 1) = sin(_roll) * cos(_pitch);
     _LTG(2, 2) = cos(_roll) * cos(_pitch);
     _LTG(0, 3) = _x;
@@ -595,7 +605,7 @@ void nmpc_traj_cb(const traj_utils::Flag::ConstPtr &msg)
     // }
     is_get_planner_msgs = true;
 
-    for(int i=0; i<9; i++)
+    for(int i=0; i<6; i++)
     {
         nmpc_traj_pt[i].pos = Eigen::Vector3d(msg->cmd[i].position.x, msg->cmd[i].position.y, msg->cmd[i].position.z);
         nmpc_traj_pt[i].vel = Eigen::Vector3d(msg->cmd[i].velocity.x, msg->cmd[i].velocity.y, msg->cmd[i].velocity.z);
@@ -676,51 +686,25 @@ void ring_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
     ring_end_time = ring_start_time;                       //Monitor the time between two frame
 
     Eigen::Vector3d prepose(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
-    cout << "static ring: [" << ring1_pose(0) << ", " << ring1_pose(1) << ", " << ring1_pose(2) << "]" << endl;
+    cout << "dynamic ring: [" << ring2_pose(0) << ", " << ring2_pose(1) << ", " << ring2_pose(2) << "]" << endl;
     
-    if (task == 1)     //solid ring
-    {
-        if (JudgeDis(prepose, ring1_pose, 100.0))
-        {
-            Eigen::Vector3d filterpose;
-            if (MedianFilter(ring1_filter, prepose, ring1_filter_size, filterpose))
-            {
-                if (!JudgeDis(filterpose, ring1_pose, 0.01))
-                {
-                    cout << "\033[32m" << "ring1 changed!" << endl;
-                    cout << "ring1 changed!" << endl;
-                    cout << "ring1 changed!" << endl;
-                    cout << "From: [" << ring1_pose(0) << ", " << ring1_pose(1) << ", " << ring1_pose(2) << "]" << endl;
-                    cout << "To: [" << filterpose(0) << ", " << filterpose(1) << ", " << filterpose(2) << "]" << "\033[0m" << endl;
-                    ring1_pose = filterpose;
-                    need_GeneTraj = true;
-                }
-                else
-                {
-                    cout << "No need to change ring1!!!" << endl;
-                }
-            }
-            else
-            {
-                cout << "ring1 Filter is not full!" << endl;
-            }
-        }
-        else
-        {
-            cout << "Perception of ring1 is out of security range!" << endl;
-        }
-    }
+    dynamic_ring == true;
+   // cout << "have found dynamic ring" << endl;
+
     
-    if (task == 3)    //moving ring
-    {
-        if (JudgeDis(prepose, ring2_pose, 2.0))
+    
+        if (JudgeDis(prepose, ring2_pose, 1.0))
         {
             Eigen::Vector3d filterpose;
             if (MedAveFilter(ring2_filter, prepose, ring2_filter_size, filterpose))   //这里是平均中值
             {
                 // if (task == 5)
                 // {
-                //     ring2_pose = filterpose;
+                    // ring2_pose = filterpose;
+                    // cout << "dynamic_ring seted !" << endl;
+                    // cout << "pos: [" << ring2_pose(0) << ", " << ring2_pose(1) << ", " << ring2_pose(2) << "]" << "\033[0m" << endl;
+                    // set_dynamic_ring = true;
+                    // need_GeneTraj = true;
                 // }
                 // else
                 // {
@@ -733,6 +717,7 @@ void ring_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
                         cout << "To: [" << filterpose(0) << ", " << filterpose(1) << ", " << filterpose(2) << "]" << "\033[0m" << endl;
                         ring2_pose = filterpose;
                         need_GeneTraj = true;
+                        static bool dynamic_ring = true;
                     }
                     else
                     {
@@ -749,39 +734,8 @@ void ring_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
         {
             cout << "Perception of ring2 is out of security range!" << endl;
         }
-    }
-    if (task == 2)
-    {
-        if (JudgeDis(prepose, ring3_pose, 1.0))
-        {
-            Eigen::Vector3d filterpose;
-            if (MedianFilter(ring3_filter, prepose, ring3_filter_size, filterpose))
-            {
-                if (!JudgeDis(filterpose, ring3_pose, 0.15))
-                {
-                    cout << "\033[32m" << "ring1 changed!" << endl;
-                    cout << "ring1 changed!" << endl;
-                    cout << "ring1 changed!" << endl;
-                    cout << "From: [" << ring3_pose(0) << ", " << ring3_pose(1) << ", " << ring3_pose(2) << "]" << endl;
-                    cout << "To: [" << filterpose(0) << ", " << filterpose(1) << ", " << filterpose(2) << "]" << "\033[0m" << endl;
-                    ring3_pose = filterpose;
-                    need_GeneTraj = true;
-                }
-                else
-                {
-                    cout << "No need to change ring3!!!" << endl;
-                }
-            }
-            else
-            {
-                cout << "ring3 Filter is not full!" << endl;
-            }
-        }
-        else
-        {
-            cout << "Perception of ring3 is out of security range!" << endl;
-        }
-    }
+   
+    
 }
 
 void double_ring1_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
@@ -794,7 +748,7 @@ void double_ring1_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
     Eigen::Vector3d prepose(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
     cout << "double1: [" << double_pose1(0) << ", " << double_pose1(1) << ", " << double_pose1(2) << "]" << endl;
     
-        if (JudgeDis(prepose, double_pose1, 4.0))
+        if (JudgeDis(prepose, double_pose1, 2.0))
         {
             Eigen::Vector3d filterpose;
             if (MedianFilter(dou1_filter, prepose, dou1_filter_size, filterpose))
@@ -829,13 +783,13 @@ void double_ring1_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
 void double_ring2_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
 {
     doublering2_start_time = msg->header.stamp.toSec();
-    cout << "\033[33m" << "doubleRing1 callback!" << endl;
+    cout << "\033[33m" << "doubleRing2 callback!" << endl;
     cout << "doubleRing2 Delta Time: " << doublering2_start_time - doublering2_end_time << "\033[0m" << endl;
     doublering2_end_time = doublering2_start_time;                       //Monitor the time between two frame
     cout << "double2: [" << double_pose2(0) << ", " << double_pose2(1) << ", " << double_pose2(2) << "]" << endl;
     Eigen::Vector3d prepose(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
     
-        if (JudgeDis(prepose, double_pose2, 4.0))
+        if (JudgeDis(prepose, double_pose2, 2.0))
         {
             Eigen::Vector3d filterpose;
             if (MedianFilter(dou2_filter, prepose, dou2_filter_size, filterpose))
@@ -1044,6 +998,7 @@ void apriltag_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)    // 0705
     ap_end_time = ap_start_time;                //Monitor the time between two frame
 
     Eigen::Vector4d prepose(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, 1);
+    cout << "prepose: " << prepose.transpose() << endl;
     double min_delta_time = 100000;
     int num = 0;
     for (int i=0;i<fsm_pos.size();i++)
@@ -1055,9 +1010,16 @@ void apriltag_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)    // 0705
             num = i;
         }
     }
+    Eigen::Matrix4d m;
+    m << -1, 0, 0, 0,
+        0, -1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1;
+    prepose = m * prepose;
     Eigen::Vector4d LTGpose = LocalToGlobal(fsm_pos[num][1], fsm_pos[num][2], fsm_pos[num][3], 
                                             fsm_pos[num][4], fsm_pos[num][5], fsm_pos[num][6]) * prepose;
     Eigen::Vector3d LTGpose03 = LTGpose.head(3);
+
     ap_gl_pos = LTGpose03;
     // cout << "LTGpose03: [" << LTGpose03(0) << ", " << LTGpose03(1) << ", " << LTGpose03(2) << "]" << endl;
 
@@ -1074,6 +1036,21 @@ void apriltag_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)    // 0705
                 ROS_WARN("Apriltag has been found!!!");
             }
             ap_pose = filterpose;
+            april_pos.header.stamp = ros::Time::now();
+            april_pos.header.frame_id = "map"; // 根据实际情况修改坐标系
+
+            // 设置位置信息
+            april_pos.pose.position.x = ap_pose(0);
+            april_pos.pose.position.y = ap_pose(1);
+            april_pos.pose.position.z = ap_pose(2);
+
+            // 设置姿态为单位四元数（如果不需要姿态信息）
+            april_pos.pose.orientation.x = 0.0;
+            april_pos.pose.orientation.y = 0.0;
+            april_pos.pose.orientation.z = 0.0;
+            april_pos.pose.orientation.w = 1.0;
+            
+            cout << "LTGpose03: [" << ap_pose(0) << ", " << ap_pose(1) << ", " << ap_pose(2) << "]" << endl;
         }
         else
         {
@@ -1117,12 +1094,28 @@ void EgoAddPoint(int _id, int _mode, int _is_map, double _x, double _y, double _
 void EgoGeneTraj()
 {
     Ego_traj.clear();
-    EgoAddPoint(0, 1, 0, 4.0, 0, 0.6, 0.0, 5);
-    EgoAddPoint(1, 1, 0, 6.0, 0, 0.6, 0.0, 5);
-    EgoAddPoint(2, 1, 0, 4.0, 0.0, 0.6, 0.0, 5);
-    EgoAddPoint(3, 1, 0, 0.0, 0.0, 0.6, 0.0, 5);
-    EgoAddPoint(4, 2, 0, 3.0, 0, 0.6, 0.0, 5);
-    EgoAddPoint(5, 2, 0, 0.0, 0, 0.6, 0.0, 5);
+    EgoAddPoint(0, 2, 0, 1.0, 0.0, 1.3, 0.0, 2);
+    EgoAddPoint(1, 2, 0, 2.0, 0.0, 1.3, 0.0, 2);
+    EgoAddPoint(2, 3, 0, tunnel_pose1(0)-0.5, tunnel_pose1(1), 1.3, 0.0, 0);
+    EgoAddPoint(3, 3, 0, tunnel_pose1(0)+0.5, tunnel_pose1(1), 1.3, 0.0, 7);
+    EgoAddPoint(4, 3, 0, 5.623,0.528 , 1.3, 0.0, 7);
+    EgoAddPoint(5, 3, 0, double_pose1(0)-0.8, double_pose1(1), 1.65, 0.0, 0);
+    EgoAddPoint(6, 3, 0, double_pose1(0)+0.8, double_pose1(1), 1.65, 0.0, 0);
+    EgoAddPoint(7, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.65, 0.0, 0);
+    EgoAddPoint(8, 3, 0, double_pose2(0)-0.8, double_pose2(1), 1.65, 0.0, 0);
+    EgoAddPoint(9, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.65, 0.0, 0);
+    EgoAddPoint(10, 2, 0, ring2_pose(0)-1,ring2_pose(1), ring2_pose(2), 0.0, 5);
+    EgoAddPoint(2, 3, 0, 10.9, -0.12, 1.2, 0.0, 5);
+    EgoAddPoint(3, 3, 0, 11.2, -1.1, 1.2, -3.13, 5);
+    EgoAddPoint(4, 3, 0, 9.66, -1.35, 1.4, -3.13, 5);
+    EgoAddPoint(5, 3, 0, 8.77, -1.35, 1.4, -3.13, 5);
+    EgoAddPoint(6, 3, 0, 7.9, -4.7, 1.3, -3.13, 5);
+    EgoAddPoint(7, 3, 0, double_pose1(0)+1, double_pose1(1), 1.65, -3.13, 5);
+    EgoAddPoint(8, 3, 0, double_pose1(0)-1, double_pose1(1), 1.65, -3.13, 5);
+    EgoAddPoint(9, 3, 0, double_pose2(0)-1, double_pose2(1), 1.65, -3.13, 5);
+    EgoAddPoint(10, 3, 0, double_pose2(0)+1, double_pose2(1), 1.65, -3.13, 5);
+    EgoAddPoint(11, 3, 0, 7.49, -5.48, 0.5, -3.13, 5);
+   
 
     // EgoAddPoint(0, 2, 0, 3, 0, 0.5, 0.0, 5);
     // EgoAddPoint(1, 2, 0, double_pose1(0)-0.5, double_pose1(1), double_pose1(2), 0.0, 5);
@@ -1216,7 +1209,6 @@ void SUPER_flag_state_cb(const super_msgs::FlagConstPtr &msg)
     flag_super_state.touch_goal = msg->touch_goal;
 }
 
-
 /*--------------------------- Main ---------------------------*/
 
 void UdpListen(const uint16_t cport)
@@ -1286,15 +1278,18 @@ void UdpListen(const uint16_t cport)
             //else {ROS_WARN("Waiting Pose EKF!");}
         }
         /* low battery protection (land and disable UDP) */
-        // else
-        // {
-        //     if(voltage < 14.8)
-        //     {
-        //         cmdd = 4;
-        //         flag_udp = false;
-        //         ROS_ERROR("Low Battery!!!");
-        //     }
-        // }
+        else
+        {
+            // if(voltage < 14.8)
+            // {
+            //     cmdd = 4;
+            //     flag_udp = false;
+            //     ROS_ERROR("Low Battery!!!");
+            // }
+            if(emergency_channel > 1500)
+            {cmd = 9;}
+        }
+
     }
 }
 
@@ -1355,7 +1350,7 @@ int main(int argc, char **argv)
     // SYX FSM TEST DONE
 
     /*----------LXK----------*/
-    //ros::Subscriber ring_sub = nh.subscribe<geometry_msgs::PoseStamped>("/target_pose", 10, ring_cb);
+    ros::Subscriber ring_sub = nh.subscribe<geometry_msgs::PoseStamped>("/target_pose", 10, ring_cb);
     ros::Subscriber apriltag_sub = nh.subscribe<geometry_msgs::PoseStamped>("/tf_output", 10, apriltag_cb);
     ros::Subscriber tunnel_sub = nh.subscribe<nav_msgs::Path>("/task2_pose", 10, tunnel_cb);
     ros::Subscriber maze_sub = nh.subscribe<nav_msgs::Path>("/task3_pose", 10, maze_cb);
@@ -1364,6 +1359,8 @@ int main(int argc, char **argv)
     //chx
     ros::Subscriber doublering1_sub = nh.subscribe<geometry_msgs::PoseStamped>("/Lcircle_pos", 10, double_ring1_cb);
     ros::Subscriber doublering2_sub = nh.subscribe<geometry_msgs::PoseStamped>("/Rcircle_pos", 10, double_ring2_cb);
+    ros::Publisher appos_pub = nh.advertise<geometry_msgs::PoseStamped>
+        ("/globalappos", 10);
 
     /*----------YYZ----------*/
     ros::Subscriber planner_msgs_sub = nh.subscribe<super_msgs::Flag>("/super/flag_cmd", 10, PlannerCallback);
@@ -1432,7 +1429,7 @@ int main(int argc, char **argv)
     int nmpc_predict_step = 5;
     int nmpc_timestamp = 0;
     float nmpc_sample_time = 0.1;
-    double hover_thrust = 0.17;
+    double hover_thrust = 0.196;
     int nmpc_test_state=0;
     int nmpc_test_time_cnt=0;
     ros::Time begin_time = ros::Time::now();
@@ -1547,6 +1544,187 @@ int main(int argc, char **argv)
     double w_z_cmd = 0;
 
 
+    ros::Time start_time = ros::Time::now();
+            current_states.clear();
+            desired_states.clear();
+            quat_yaw = EulerToQuat(0, 0, YawSmooth(yaw_now, -3.13));
+            std::cout << "quat_yaw: " << quat_yaw.x() << " " << quat_yaw.y() << " " << quat_yaw.z() << " " << quat_yaw.w() << std::endl;
+
+            current_states.push_back(5.22315);
+            current_states.push_back(-4.17699);
+            current_states.push_back(1.7552);
+            current_states.push_back(-0.135281);
+            current_states.push_back(-0.462223);
+            current_states.push_back(0.0219036);
+            current_states.push_back(-0.999705);
+            current_states.push_back(0.00541663);
+            current_states.push_back(-0.00187193);
+            current_states.push_back(0.0236227);
+
+            desired_states.push_back(5.16159); 
+            desired_states.push_back(-4.23005);
+            desired_states.push_back(1.61903);
+            desired_states.push_back(-0.103842);
+            desired_states.push_back(-0.413652);
+            desired_states.push_back(0.0170752);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+            desired_states.push_back(5.15672); 
+            desired_states.push_back(-4.25104);
+            desired_states.push_back(1.6199);
+            desired_states.push_back(-0.0914452);
+            desired_states.push_back(-0.425836);
+            desired_states.push_back(0.0176725);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+            desired_states.push_back(5.15243); 
+            desired_states.push_back(-4.27261);
+            desired_states.push_back(1.6208);
+            desired_states.push_back(-0.0802961);
+            desired_states.push_back(-0.436872);
+            desired_states.push_back(0.0182115);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+            desired_states.push_back(5.14867); 
+            desired_states.push_back(-4.29471);
+            desired_states.push_back(1.62172);
+            desired_states.push_back(-0.0703226);
+            desired_states.push_back(-0.446923);
+            desired_states.push_back(0.0187);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+            desired_states.push_back(5.14538); 
+            desired_states.push_back(-4.31729);
+            desired_states.push_back(1.62267);
+            desired_states.push_back(-0.0614544);
+            desired_states.push_back(-0.456134);
+            desired_states.push_back(0.0191446);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+            desired_states.push_back(5.1425); 
+            desired_states.push_back(-4.34031);
+            desired_states.push_back(1.62363);
+            desired_states.push_back(-0.0536222);
+            desired_states.push_back(-0.464636);
+            desired_states.push_back(0.0195516);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+            desired_states.push_back(5.14); 
+            desired_states.push_back(-4.36374);
+            desired_states.push_back(1.62462);
+            desired_states.push_back(-0.0467585);
+            desired_states.push_back(-0.472538);
+            desired_states.push_back(0.0199262);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+            desired_states.push_back(5.13781); 
+            desired_states.push_back(-4.38756);
+            desired_states.push_back(1.62563);
+            desired_states.push_back(-0.0407971);
+            desired_states.push_back(-0.479934);
+            desired_states.push_back(0.020273);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+            desired_states.push_back(5.1359); 
+            desired_states.push_back(-4.41173);
+            desired_states.push_back(1.62665);
+            desired_states.push_back(-0.0356735);
+            desired_states.push_back(-0.486901);
+            desired_states.push_back(0.0205956);
+            desired_states.push_back(quat_yaw.w());
+            desired_states.push_back(quat_yaw.x());
+            desired_states.push_back(quat_yaw.y());
+            desired_states.push_back(quat_yaw.z());
+
+             
+            for(int i = 0; i < nmpc_simple_predict_step; i++)
+            {
+                desired_states.push_back(0.0); 
+                desired_states.push_back(0.0);
+                desired_states.push_back(0.0);
+                desired_states.push_back(9.8015);
+            }
+
+            nmpc_ctrl_simple.optimal_solution(current_states, desired_states);
+
+            double acc_z_command = nmpc_ctrl_simple.getAcc_zCommand();
+            Eigen::Vector3d w_command = nmpc_ctrl_simple.getwCommand();
+
+            target_att.header.frame_id = std::string("FCU");
+            target_att.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
+
+            target_att.body_rate.x = w_command.x();
+            target_att.body_rate.y = w_command.y();
+            target_att.body_rate.z = w_command.z();
+
+            target_att.thrust = acc_z_command;
+            local_attitude_pub.publish(target_att);
+            std::cout << "acc_z_command: " << acc_z_command << std::endl;
+            std::cout << "w_command: " << w_command << std::endl;
+
+            ros::Time end_time = ros::Time::now();
+            ros::Duration elapsed_time = end_time - start_time;
+            if(elapsed_time.toSec() * 1000 > 12)
+            {ROS_WARN("NMPC used time: %.1f ms", elapsed_time.toSec() * 1000);}
+
+            fsm_ctrl::nmpc_state nmpc_state_msg;
+
+            for (int i = 0; i < 9; i++) {
+                nmpc_state_msg.pos_ref[i].x = desired_states[i * 10];     // x坐标赋值
+                nmpc_state_msg.pos_ref[i].y = desired_states[i * 10 + 1];     // y坐标赋值
+                nmpc_state_msg.pos_ref[i].z = desired_states[i * 10 + 2];     // z坐标赋值
+                nmpc_state_msg.vel_ref[i].x = desired_states[i * 10 + 3];     // x速度赋值
+                nmpc_state_msg.vel_ref[i].y = desired_states[i * 10 + 4];     // y速度赋值
+                nmpc_state_msg.vel_ref[i].z = desired_states[i * 10 + 5];     // z速度赋值
+            }
+
+            nmpc_state_msg.pos_fdb.x = current_states[0];
+            nmpc_state_msg.pos_fdb.y = current_states[1];
+            nmpc_state_msg.pos_fdb.z = current_states[2];
+
+            nmpc_state_msg.vel_fdb.x = current_states[3];
+            nmpc_state_msg.vel_fdb.y = current_states[4];
+            nmpc_state_msg.vel_fdb.z = current_states[5];
+
+            nmpc_state_msg.attitude_fdb.x = current_states[6];
+            nmpc_state_msg.attitude_fdb.y = current_states[7];
+            nmpc_state_msg.attitude_fdb.z = current_states[8];
+            nmpc_state_msg.attitude_fdb.w = current_states[9];
+
+            nmpc_state_msg.target.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE |
+                                  mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE;
+            nmpc_state_msg.target.body_rate.x = w_command.x();
+            nmpc_state_msg.target.body_rate.y = w_command.y();
+            nmpc_state_msg.target.body_rate.z = w_command.z();
+            nmpc_state_msg.target.thrust = acc_z_command;
+
+            nmpc_state_pub.publish(nmpc_state_msg);
+
+
 
 
     while (ros::ok())
@@ -1554,10 +1732,10 @@ int main(int argc, char **argv)
         ros::spinOnce();
         // /*----------LXK----------*/
         // //for ego
-        // // if (flag_state.now_id < Ego_traj_size-1)
-        // // {
-        // //     task = state2task[flag_state.now_id];
-        // // }
+        if (flag_state.now_id < Ego_traj_size-1)
+        {
+            task = state2task[flag_state.now_id];
+        }
         // //for super
         // if (flag_super_state.now_id < Ego_traj_size-1)
         // {
@@ -1567,23 +1745,32 @@ int main(int argc, char **argv)
         // PrintInfo(task_print_count, 25, "task: ", task);
 
 
-        // if (task < 6)
-        // {
-        //     //for ego
-        //     // perc_mode = Ego_traj[flag_state.now_id].perc_mode;
-        //     //for super
-        //     perc_mode = Ego_traj[flag_super_state.now_id].perc_mode;
-        // }
-        // else
-        // {
-        //     perc_mode = 6;
-        // }
+        if (task < 6)
+        {
+            //for ego
+            perc_mode = Ego_traj[flag_state.now_id].perc_mode;
+            //for super
+            // perc_mode = Ego_traj[flag_super_state.now_id].perc_mode;
+        }
+        else
+        {
+            perc_mode = 6;
+        }
         // PrintInfo(perc_mode_print_count, 25, "perc mode: ", perc_mode);
         // // PrintInfo(perc_mode_print_count, 25, "cmd: ", cmd);
-        // perc_mode = 7;
-        // perc_mode_msg.data = perc_mode;
-        // PrintInfo(perc_mode_print_count, 25, "perc mode: ", perc_mode);
-        // perc_mode_pub.publish(perc_mode_msg);
+        if(flag_state.now_id==Ego_traj_size-1){
+          
+                if(flag_state.touch_goal == true){
+                    task1 = 6;
+                    cout << "task" <<task1 << endl;
+                }
+                
+            }
+        
+        //perc_mode = 7;
+        perc_mode_msg.data = perc_mode;
+        PrintInfo(perc_mode_print_count, 25, "perc mode: ", perc_mode);
+        perc_mode_pub.publish(perc_mode_msg);
 
         ap_gl_msg.pose.position.x = ap_pose(0);
         ap_gl_msg.pose.position.y = ap_pose(1);
@@ -1695,10 +1882,10 @@ int main(int argc, char **argv)
                 local_pos_pub.publish(aim_pos);
             } 
 
-            perc_mode = 7;
-            perc_mode_msg.data = perc_mode;
-            PrintInfo(perc_mode_print_count, 25, "perc mode: ", perc_mode);
-            perc_mode_pub.publish(perc_mode_msg);   
+            // perc_mode = 7;
+            // perc_mode_msg.data = perc_mode;
+            // PrintInfo(perc_mode_print_count, 25, "perc mode: ", perc_mode);
+            // perc_mode_pub.publish(perc_mode_msg);   
 
         }
 
@@ -1863,6 +2050,439 @@ int main(int argc, char **argv)
         
         if (cmd == 8)
         {
+            if(need_GeneTraj){
+                EgoGeneTraj();
+                if (Ego_traj_count<Ego_traj_size){
+                    EGO_flag_aimpos(Ego_traj[Ego_traj_count]);
+                    ROS_INFO("Ego Trajectory Num %d", Ego_traj_count);
+                    ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_count, Ego_traj[Ego_traj_count].x, Ego_traj[Ego_traj_count].y, Ego_traj[Ego_traj_count].z);
+                    planner_cmd_pub.publish(flag_super_msg);
+                    ego_flag_pub.publish(flag_traj_msg);
+                }           
+                Ego_traj_count++;
+                if (Ego_traj_count == Ego_traj_size)
+                {
+                    need_GeneTraj = false;
+                    Ego_traj_count = 0;
+                }
+            }
+
+            quat_yaw = EulerToQuat(0, 0, YawSmooth(yaw_now, Ego_traj[flag_state.now_id].yaw));
+            ROS_INFO("yaw is %f", yaw_now);
+            
+            geometry_msgs::PoseStamped nmpc_posfdb_msg;
+            nmpc_posfdb_msg.pose.position.x = pos_fcu(0);
+            nmpc_posfdb_msg.pose.position.y = pos_fcu(1);
+            nmpc_posfdb_msg.pose.position.z = pos_fcu(2);
+            nmpc_posfdb_pub.publish(nmpc_posfdb_msg);
+            std::cout<<"position[0]: "<<pos_fcu(0)<<std::endl;
+
+            geometry_msgs::PoseStamped nmpc_posref_msg;
+            nmpc_posref_msg.pose.position.x = nmpc_traj_pt[0].pos(0);
+            nmpc_posref_msg.pose.position.y = nmpc_traj_pt[0].pos(1);
+            nmpc_posref_msg.pose.position.z = nmpc_traj_pt[0].pos(2);
+            nmpc_posref_pub.publish(nmpc_posref_msg);
+
+            // NMPC data update
+            nmpc_current_states << pos_fcu(0),pos_fcu(1),pos_fcu(2),vel_fcu(0),vel_fcu(1),vel_fcu(2),quat_fcu.w(),quat_fcu.x(),quat_fcu.y(),quat_fcu.z();
+            nmpc_desired_states << 
+            nmpc_traj_pt[0].pos(0), nmpc_traj_pt[0].pos(1), nmpc_traj_pt[0].pos(2),
+            nmpc_traj_pt[0].vel(0), nmpc_traj_pt[0].vel(1), nmpc_traj_pt[0].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
+            nmpc_traj_pt[1].pos(0), nmpc_traj_pt[1].pos(1), nmpc_traj_pt[1].pos(2), 
+            nmpc_traj_pt[1].vel(0), nmpc_traj_pt[1].vel(1), nmpc_traj_pt[1].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
+            nmpc_traj_pt[2].pos(0), nmpc_traj_pt[2].pos(1), nmpc_traj_pt[2].pos(2), 
+            nmpc_traj_pt[2].vel(0), nmpc_traj_pt[2].vel(1), nmpc_traj_pt[2].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
+            nmpc_traj_pt[3].pos(0), nmpc_traj_pt[3].pos(1), nmpc_traj_pt[3].pos(2), 
+            nmpc_traj_pt[3].vel(0), nmpc_traj_pt[3].vel(1), nmpc_traj_pt[3].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
+            nmpc_traj_pt[4].pos(0), nmpc_traj_pt[4].pos(1), nmpc_traj_pt[4].pos(2), 
+            nmpc_traj_pt[4].vel(0), nmpc_traj_pt[4].vel(1), nmpc_traj_pt[4].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
+            nmpc_traj_pt[5].pos(0), nmpc_traj_pt[5].pos(1), nmpc_traj_pt[5].pos(2), 
+            nmpc_traj_pt[5].vel(0), nmpc_traj_pt[5].vel(1), nmpc_traj_pt[5].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z();  //期望的位置
+            nmpc_desired_controls << 9.8, 0, 0, 0;                  //期望的控制量
+            // NMPC solution
+            younger_ctrl.optimal_solution(nmpc_current_states, nmpc_desired_states, nmpc_desired_controls);
+
+            if(younger_ctrl.Acc2Trust())
+            {
+                mavros_msgs::AttitudeTarget msg;
+                msg.header.frame_id = std::string("NMPC");
+                msg.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
+                msg.thrust = younger_ctrl.get_control_command()(0);
+                msg.body_rate.x = younger_ctrl.get_control_command()(1);
+                msg.body_rate.y = younger_ctrl.get_control_command()(2);
+                msg.body_rate.z = younger_ctrl.get_control_command()(3);
+
+                std::cout<<"thrust is "<<younger_ctrl.get_control_command()(0)<<std::endl;
+                local_attitude_pub.publish(msg);
+            }
+        }
+
+        if (cmd == 6){       //jieyixia super
+            // std::cout<<"cmd=6"<<std::endl;
+            if(need_GeneTraj){
+                EgoGeneTraj();
+                if (Ego_traj_count<Ego_traj_size){
+                    EGO_flag_aimpos(Ego_traj[Ego_traj_count]);
+                    ROS_INFO("Ego Trajectory Num %d", Ego_traj_count);
+                    ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_count, Ego_traj[Ego_traj_count].x, Ego_traj[Ego_traj_count].y, Ego_traj[Ego_traj_count].z);
+                    planner_cmd_pub.publish(flag_super_msg);
+                    ego_flag_pub.publish(flag_traj_msg);
+                }           
+                Ego_traj_count++;
+                    if (Ego_traj_count == Ego_traj_size)
+                    {
+                        need_GeneTraj = false;
+                        Ego_traj_count = 0;
+                    }
+            }
+
+            quat_yaw = EulerToQuat(0, 0, YawSmooth(yaw_now, Ego_traj[flag_state.now_id].yaw));
+
+            ros::Time start_time = ros::Time::now();
+            current_states.clear();
+            desired_states.clear();
+
+            current_states.push_back(pos_fcu.x());
+            current_states.push_back(pos_fcu.y());
+            current_states.push_back(pos_fcu.z());
+            current_states.push_back(vel_fcu.x());
+            current_states.push_back(vel_fcu.y());
+            current_states.push_back(vel_fcu.z());
+            current_states.push_back(quat_fcu.w());
+            current_states.push_back(quat_fcu.x());
+            current_states.push_back(quat_fcu.y());
+            current_states.push_back(quat_fcu.z());
+
+            if(is_get_planner_msgs == false)
+            {
+                for(int i = 0; i < nmpc_simple_predict_step + 1; i++)
+                {
+                    desired_states.push_back(0.00); 
+                    desired_states.push_back(0.00);
+                    desired_states.push_back(0.2);
+                    desired_states.push_back(0.0);
+                    desired_states.push_back(0.0);
+                    desired_states.push_back(0.0);
+                    desired_states.push_back(1.0);
+                    desired_states.push_back(0.0);
+                    desired_states.push_back(0.0);
+                    desired_states.push_back(0.0);
+                    // ROS_INFO("get nmpc traj  pos_des[i] = %f", 0.0);
+                }
+            }
+            else
+            {
+                for(int i = 0; i < nmpc_simple_predict_step + 1; i++)
+                {
+                    // for super
+                    // desired_states.push_back(nmpc_pos_des[i].x()); 
+                    // desired_states.push_back(nmpc_pos_des[i].y());
+                    // desired_states.push_back(nmpc_pos_des[i].z());
+                    // desired_states.push_back(nmpc_vel_des[i].x());
+                    // desired_states.push_back(nmpc_vel_des[i].y());
+                    // desired_states.push_back(nmpc_vel_des[i].z());
+                    // desired_states.push_back(1.0);
+                    // desired_states.push_back(0.0);
+                    // desired_states.push_back(0.0);
+                    // desired_states.push_back(0.0);
+
+                    //for egov2
+                    desired_states.push_back(nmpc_traj_pt[i].pos.x()); 
+                    desired_states.push_back(nmpc_traj_pt[i].pos.y());
+                    desired_states.push_back(nmpc_traj_pt[i].pos.z());
+                    desired_states.push_back(nmpc_traj_pt[i].vel.x());
+                    desired_states.push_back(nmpc_traj_pt[i].vel.y());
+                    desired_states.push_back(nmpc_traj_pt[i].vel.z());
+                    desired_states.push_back(quat_yaw.w());
+                    desired_states.push_back(quat_yaw.x());
+                    desired_states.push_back(quat_yaw.y());
+                    desired_states.push_back(quat_yaw.z());
+                    // ROS_INFO("get nmpc traj  yaw = %f", yaw_now);
+                   
+                }
+            }
+
+             
+            for(int i = 0; i < nmpc_simple_predict_step; i++)
+            {
+                desired_states.push_back(0.0); 
+                desired_states.push_back(0.0);
+                desired_states.push_back(0.0);
+                desired_states.push_back(9.8015);
+            }
+
+            nmpc_ctrl_simple.optimal_solution(current_states, desired_states);
+
+            double acc_z_command = nmpc_ctrl_simple.getAcc_zCommand();
+            Eigen::Vector3d w_command = nmpc_ctrl_simple.getwCommand();
+
+            target_att.header.frame_id = std::string("FCU");
+            target_att.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
+
+            target_att.body_rate.x = w_command.x();
+            target_att.body_rate.y = w_command.y();
+            target_att.body_rate.z = w_command.z();
+
+            target_att.thrust = acc_z_command;
+            local_attitude_pub.publish(target_att);
+
+            ros::Time end_time = ros::Time::now();
+            ros::Duration elapsed_time = end_time - start_time;
+            if(elapsed_time.toSec() * 1000 > 1)
+            {ROS_WARN("NMPC used time: %.1f ms", elapsed_time.toSec() * 1000);}
+
+            fsm_ctrl::nmpc_state nmpc_state_msg;
+
+            for (int i = 0; i < 9; i++) {
+                nmpc_state_msg.pos_ref[i].x = desired_states[i * 10];     // x坐标赋值
+                nmpc_state_msg.pos_ref[i].y = desired_states[i * 10 + 1];     // y坐标赋值
+                nmpc_state_msg.pos_ref[i].z = desired_states[i * 10 + 2];     // z坐标赋值
+                nmpc_state_msg.vel_ref[i].x = desired_states[i * 10 + 3];     // x速度赋值
+                nmpc_state_msg.vel_ref[i].y = desired_states[i * 10 + 4];     // y速度赋值
+                nmpc_state_msg.vel_ref[i].z = desired_states[i * 10 + 5];     // z速度赋值
+            }
+
+            nmpc_state_msg.pos_fdb.x = current_states[0];
+            nmpc_state_msg.pos_fdb.y = current_states[1];
+            nmpc_state_msg.pos_fdb.z = current_states[2];
+
+            nmpc_state_msg.vel_fdb.x = current_states[3];
+            nmpc_state_msg.vel_fdb.y = current_states[4];
+            nmpc_state_msg.vel_fdb.z = current_states[5];
+
+            nmpc_state_msg.attitude_fdb.x = current_states[6];
+            nmpc_state_msg.attitude_fdb.y = current_states[7];
+            nmpc_state_msg.attitude_fdb.z = current_states[8];
+            nmpc_state_msg.attitude_fdb.w = current_states[9];
+
+            nmpc_state_msg.target.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE |
+                                  mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE;
+            nmpc_state_msg.target.body_rate.x = w_command.x();
+            nmpc_state_msg.target.body_rate.y = w_command.y();
+            nmpc_state_msg.target.body_rate.z = w_command.z();
+            nmpc_state_msg.target.thrust = acc_z_command;
+
+            nmpc_state_pub.publish(nmpc_state_msg);
+
+        }
+
+        if (cmd ==7)
+        {
+            Ego_traj.clear();
+            if(need_GeneTraj){
+                EgoGeneTraj();
+                if (Ego_traj_count<Ego_traj_size){
+                    EGO_flag_aimpos(Ego_traj[Ego_traj_count]);
+                    ROS_INFO("Ego Trajectory Num %d", Ego_traj_count);
+                    ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_count, Ego_traj[Ego_traj_count].x, Ego_traj[Ego_traj_count].y, Ego_traj[Ego_traj_count].z);
+                    planner_cmd_pub.publish(flag_super_msg);
+                    ego_flag_pub.publish(flag_traj_msg);
+                }           
+                Ego_traj_count++;
+                if (Ego_traj_count == Ego_traj_size)
+                {
+                    need_GeneTraj = false;
+                    Ego_traj_count = flag_state.now_id;
+                }
+            }
+        
+            if( task1 == 6 ){
+              
+                if (is_arrive_ring2 == false && is_crossed_ring2 == false)
+                {
+                    double delta_pos_x = 0.6 * Clamp_Single(ring2_pose(0) - pos_fcu[0], 0.1);
+                    for (int i=0;i<6;i++)
+                    {
+                        nmpc_traj_pt[i].pos(0) = ring2_pose(0) - 1 + 0.01*ring2_approach_count;    //
+                        nmpc_traj_pt[i].pos(1) = ring2_pose(1) + i*delta_pos_x;;
+                        nmpc_traj_pt[i].pos(2) = ring2_pose(2);
+                        nmpc_traj_pt[i].vel(0) = 0.0;
+                        nmpc_traj_pt[i].vel(1) = 0.0;
+                        nmpc_traj_pt[i].vel(2) = 0.0;
+                    }
+                    cout << "Flying to Ring2!  [Delta_x, Delta_y]: [" << ring2_pose(0)-pos_fcu[0] << ", " << ring2_pose(1)-pos_fcu[1] << "]" << endl;
+                    ring2_approach_count++;
+                    if (ring2_approach_count == 100)
+                    {
+                        is_arrive_ring2 = true;
+                    }
+                }
+                else if (is_arrive_ring2 == true && is_crossed_ring2 == false)
+                {
+                    for (int i=0;i<6;i++)
+                    {
+                        nmpc_traj_pt[i].pos(0) = ring2_pose(0) + 0.01*ring2_cross_count;
+                        nmpc_traj_pt[i].pos(1) = ring2_pose(1);
+                        nmpc_traj_pt[i].pos(2) = ring2_pose(2);
+                        nmpc_traj_pt[i].vel(0) = 0.0;
+                        nmpc_traj_pt[i].vel(1) = 0.0;
+                        nmpc_traj_pt[i].vel(2) = 0.0;
+                    }
+                    cout << "Crossing Ring2!  " << ring2_cross_count << endl;
+                    ring2_cross_count++;
+                    if (ring2_cross_count == 100)
+                    {
+                        is_crossed_ring2 = true;
+                    }
+                }
+                else if (is_arrive_ring2 == true && is_crossed_ring2 == true)
+                {
+                    if (is_send_r2_postpoint == false)
+                    {
+                        TypePoint ap_target;
+                        ap_target.id = Ego_traj_size;
+                        ap_target.mode = 1;
+                        ap_target.is_map = 0;
+                        ap_target.x = 13.249;
+                        ap_target.y = 0.128;
+                        ap_target.z = 1.28;
+                        // ap_target.id = 2;
+                        // ap_target.mode = 2;
+                        // ap_target.is_map = 0;
+                        // ap_target.x = ring2_pose(0)+1;
+                        // ap_target.y = ring2_pose(1);
+                        // ap_target.z = 0.5;
+                        EGO_flag_aimpos(ap_target);
+                        ROS_INFO("Flying to Ring2 Postpoint!");
+                        // ROS_INFO("Publishing point %d", Ego_traj_size);
+                        ROS_INFO("finish");
+                        // ROS_INFO("Flag 2: x: %f, y: %f, z: %f",  ap_target.x, ap_target.y, ap_target.z);
+                        ego_flag_pub.publish(flag_traj_msg);
+                        is_send_r2_postpoint= true;
+                    }
+                    else
+                    {
+                        PrintInfo(r2_print_count, 20, "Flying to Ring2 Postpoint!!!");
+                    }
+                    if (flag_state.touch_goal == true)
+                    {
+                        if (r2_postpoint_lock < 10)
+                        {
+                            r2_postpoint_lock++;
+                        }
+                        else
+                        {
+                            is_arrive_r2_postpoint = true;
+                            cout << "Arrive Ring2 Postpoint!" << endl;
+                            cout << "Arrive Ring2 Postpoint!" << endl;
+                            cout << "Arrive Ring2 Postpoint!" << endl;
+                        }
+                    }
+                }
+            }
+
+            if(is_arrive_r2_postpoint == true){
+                if (is_found_ap == false && is_arrive_ap_prepoint == false)
+                    {
+                    PrintInfo(ap_print_count, 50, "Searching Apriltag!"); 
+                    if (ap_search_lock == false)
+                    {
+                        if (flag_state.touch_goal == true)
+                        {
+                            search_orient++;
+                            TypePoint search_point;
+                            search_point.id = Ego_traj_size + search_orient;
+                            search_point.mode = 2;
+                            search_point.is_map = 0;
+                            search_point.x = ap_pose(0);
+                            search_point.y = ap_pose(1) + pow(-1, search_orient%2)*1;
+                            search_point.z = 1.28;
+                            EGO_flag_aimpos(search_point);
+                            ROS_INFO("Publishing point %d", Ego_traj_size+search_orient);
+                            ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_size+search_orient, search_point.x, search_point.y, search_point.z);
+                            ROS_INFO("Searching index %d", search_orient);
+                            ego_flag_pub.publish(flag_traj_msg);
+                            ap_search_lock = true;
+                        }
+                    }
+                    else
+                    {
+                        if (ap_search_lock_count < 10)
+                        {
+                            ap_search_lock_count++;
+                        }
+                        else
+                        {
+                            ap_search_lock_count = 0;
+                            ap_search_lock = false;
+                        }
+                    }   
+                    }            
+                if (is_found_ap == true && is_arrive_ap_prepoint == false){
+
+                    if (is_send_ap_prepoint == false)
+                    {
+                        if (search_orient == 0)
+                        {
+                            search_orient = 1;
+                        }
+                        TypePoint ap_target;
+                        ap_target.id = Ego_traj_size + search_orient;
+                        //ap_target.id =1;
+                        ap_target.mode = 2;
+                        ap_target.is_map = 0;
+                        ap_target.x = ap_pose(0);
+                        ap_target.y = ap_pose(1);
+                        ap_target.z = 1.28;
+                        EGO_flag_aimpos(ap_target);
+                        //ROS_INFO("Flying to Apriltag Prepoint!");
+                        //ROS_INFO("Publishing point %d", Ego_traj_size+search_orient);
+                        //ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_size+search_orient, ap_target.x, ap_target.y, ap_target.z);
+                        ego_flag_pub.publish(flag_traj_msg);
+                        is_send_ap_prepoint = true;
+                    }
+                    else
+                    {
+                        PrintInfo(ap_print_count, 20, "Flying to Prepoint!!!");
+                    }
+                    if (flag_state.touch_goal == true)
+                    {
+                        if (ap_prepoint_lock < 10)
+                        {
+                            ap_prepoint_lock++;
+                        }
+                        else
+                        {
+                            is_arrive_ap_prepoint = true;
+                            cout << "Arrive Prepoint!" << endl;
+                        }
+                    }
+                    }
+                if (is_found_ap == true && is_arrive_ap_prepoint == true) {
+                    apland = true;
+                    double delta_pos = 0.6 * Clamp_Single(ap_pose(1) - pos_fcu[1], 0.1);
+                    for (int i=0;i<6;i++)
+                    {
+                        nmpc_traj_pt[i].pos(0) = ap_pose(0);
+                        nmpc_traj_pt[i].pos(1) = ap_pose(1) + i*delta_pos;
+                        nmpc_traj_pt[i].pos(2) = 1.28 - 0.005*ctl_land_count;
+                        nmpc_traj_pt[i].vel(0) = 0.0;
+                        nmpc_traj_pt[i].vel(1) = 0.0;
+                        nmpc_traj_pt[i].vel(2) = 0.0;
+                    }
+                    if (ctl_land_count < 256)
+                    {
+                        ctl_land_count++;
+                        cout << "Landing!!!   " << ctl_land_count << endl;
+                        cout << "[Delta_x, Delta_y]: [" << ap_pose(0)-pos_fcu[0] << ", " << ap_pose(1)-pos_fcu[1] << "]" << endl;
+                    }
+                    // else if (ctl_land_count < 320)
+                    // {
+                    //     ctl_land_count = ctl_land_count + 1;
+                    // }
+                    else
+                    {
+                        if (land_success == false)
+                        {
+                            cout << "Landing Success!" << endl;
+                            cout << "Landing Success!" << endl;
+                            cout << "Landing Success!" << endl;
+                            land_success = true;
+                        }
+                    }
+                }
+            }
+
             geometry_msgs::PoseStamped nmpc_posfdb_msg;
             nmpc_posfdb_msg.pose.position.x = pos_fcu(0);
             nmpc_posfdb_msg.pose.position.y = pos_fcu(1);
@@ -1907,225 +2527,23 @@ int main(int argc, char **argv)
                 //std::cout<<"thrust is "<<younger_ctrl.get_control_command()(0)<<std::endl;
                 local_attitude_pub.publish(msg);
             }
-        }
-
-        if (cmd == 6){       //jieyixia super
-            std::cout<<"cmd=6"<<std::endl;
-            if(need_GeneTraj){
-                EgoGeneTraj();
-                if (Ego_traj_count<Ego_traj_size){
-                    EGO_flag_aimpos(Ego_traj[Ego_traj_count]);
-                    ROS_INFO("Ego Trajectory Num %d", Ego_traj_count);
-                    ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_count, Ego_traj[Ego_traj_count].x, Ego_traj[Ego_traj_count].y, Ego_traj[Ego_traj_count].z);
-                    planner_cmd_pub.publish(flag_super_msg);
-                    ego_flag_pub.publish(flag_traj_msg);
-                }           
-                Ego_traj_count++;
-                    if (Ego_traj_count == Ego_traj_size)
-                    {
-                        need_GeneTraj = false;
-                        Ego_traj_count = 0;
-                    }
-            }
-
-            ros::Time start_time = ros::Time::now();
-            current_states.clear();
-            desired_states.clear();
-
-            current_states.push_back(pos_fcu.x());
-            current_states.push_back(pos_fcu.y());
-            current_states.push_back(pos_fcu.z());
-            current_states.push_back(vel_fcu.x());
-            current_states.push_back(vel_fcu.y());
-            current_states.push_back(vel_fcu.z());
-            current_states.push_back(quat_fcu.w());
-            current_states.push_back(quat_fcu.x());
-            current_states.push_back(quat_fcu.y());
-            current_states.push_back(quat_fcu.z());
-
-            if(is_get_planner_msgs == false)
-            {
-                for(int i = 0; i < nmpc_simple_predict_step + 1; i++)
-                {
-                    desired_states.push_back(0.00); 
-                    desired_states.push_back(0.00);
-                    desired_states.push_back(0.4);
-                    desired_states.push_back(0.0);
-                    desired_states.push_back(0.0);
-                    desired_states.push_back(0.0);
-                    desired_states.push_back(1.0);
-                    desired_states.push_back(0.0);
-                    desired_states.push_back(0.0);
-                    desired_states.push_back(0.0);
-                    // ROS_INFO("get nmpc traj  pos_des[i] = %f", 0.0);
-                }
-            }
-            else
-            {
-                for(int i = 0; i < nmpc_simple_predict_step + 1; i++)
-                {
-                    // for super
-                    desired_states.push_back(nmpc_pos_des[i].x()); 
-                    desired_states.push_back(nmpc_pos_des[i].y());
-                    desired_states.push_back(nmpc_pos_des[i].z());
-                    desired_states.push_back(nmpc_vel_des[i].x());
-                    desired_states.push_back(nmpc_vel_des[i].y());
-                    desired_states.push_back(nmpc_vel_des[i].z());
-                    desired_states.push_back(1.0);
-                    desired_states.push_back(0.0);
-                    desired_states.push_back(0.0);
-                    desired_states.push_back(0.0);
-
-                    //for egov2
-                    // desired_states.push_back(nmpc_traj_pt[i].pos.x()); 
-                    // desired_states.push_back(nmpc_traj_pt[i].pos.y());
-                    // desired_states.push_back(nmpc_traj_pt[i].pos.z());
-                    // desired_states.push_back(nmpc_traj_pt[i].vel.x());
-                    // desired_states.push_back(nmpc_traj_pt[i].vel.y());
-                    // desired_states.push_back(nmpc_traj_pt[i].vel.z());
-                    // desired_states.push_back(1.0);
-                    // desired_states.push_back(0.0);
-                    // desired_states.push_back(0.0);
-                    // desired_states.push_back(0.0);
-                    ROS_INFO("get nmpc traj  pos_des[i] = %f", nmpc_pos_des[i].x());
-                }
-            }
-
-            
-            for(int i = 0; i < nmpc_simple_predict_step; i++)
-            {
-                desired_states.push_back(0.0); 
-                desired_states.push_back(0.0);
-                desired_states.push_back(0.0);
-                desired_states.push_back(9.8015);
-            }
-
-            nmpc_ctrl_simple.optimal_solution(current_states, desired_states);
-
-            double acc_z_command = nmpc_ctrl_simple.getAcc_zCommand();
-            Eigen::Vector3d w_command = nmpc_ctrl_simple.getwCommand();
-
-            target_att.header.frame_id = std::string("FCU");
-            target_att.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
-
-            target_att.body_rate.x = w_command.x();
-            target_att.body_rate.y = w_command.y();
-            target_att.body_rate.z = w_command.z();
-
-            target_att.thrust = acc_z_command;
-            local_attitude_pub.publish(target_att);
-
-            ros::Time end_time = ros::Time::now();
-            ros::Duration elapsed_time = end_time - start_time;
-            if(elapsed_time.toSec() * 1000 > 12)
-            {ROS_WARN("NMPC used time: %.1f ms", elapsed_time.toSec() * 1000);}
-
-            fsm_ctrl::nmpc_state nmpc_state_msg;
-
-            for (int i = 0; i < 9; i++) {
-                nmpc_state_msg.pos_ref[i].x = desired_states[i * 10];     // x坐标赋值
-                nmpc_state_msg.pos_ref[i].y = desired_states[i * 10 + 1];     // y坐标赋值
-                nmpc_state_msg.pos_ref[i].z = desired_states[i * 10 + 2];     // z坐标赋值
-                nmpc_state_msg.vel_ref[i].x = desired_states[i * 10 + 3];     // x速度赋值
-                nmpc_state_msg.vel_ref[i].y = desired_states[i * 10 + 4];     // y速度赋值
-                nmpc_state_msg.vel_ref[i].z = desired_states[i * 10 + 5];     // z速度赋值
-            }
-
-            nmpc_state_msg.pos_fdb.x = current_states[0];
-            nmpc_state_msg.pos_fdb.y = current_states[1];
-            nmpc_state_msg.pos_fdb.z = current_states[2];
-
-            nmpc_state_msg.vel_fdb.x = current_states[3];
-            nmpc_state_msg.vel_fdb.y = current_states[4];
-            nmpc_state_msg.vel_fdb.z = current_states[5];
-
-            nmpc_state_msg.attitude_fdb.x = current_states[6];
-            nmpc_state_msg.attitude_fdb.y = current_states[7];
-            nmpc_state_msg.attitude_fdb.z = current_states[8];
-            nmpc_state_msg.attitude_fdb.w = current_states[9];
-
-            nmpc_state_msg.target.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE |
-                                  mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE;
-            nmpc_state_msg.target.body_rate.x = w_command.x();
-            nmpc_state_msg.target.body_rate.y = w_command.y();
-            nmpc_state_msg.target.body_rate.z = w_command.z();
-            nmpc_state_msg.target.thrust = acc_z_command;
-
-            nmpc_state_pub.publish(nmpc_state_msg);
-
-        }
-
-        if (cmd ==7)
-        {
-            Ego_traj.clear();
-            EgoAddPoint(0, 2, 1, 4.0, 0.0, 0.5, 0.0, 5);
-        //     if (task < 5)     //动态环以前
-        //     {
-        //         if (need_GeneTraj)
-        //         {
-        //             EgoGeneTraj();
-        //             if (Ego_traj_count < Ego_traj_size)
-        //             {
-        //                 EGO_flag_aimpos(Ego_traj[Ego_traj_count]);
-        //                 ROS_INFO("Ego Trajectory Num %d", Ego_traj_count);
-        //                 ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_count, Ego_traj[Ego_traj_count].x, Ego_traj[Ego_traj_count].y, Ego_traj[Ego_traj_count].z);
-        //                 ego_flag_pub.publish(flag_traj_msg);//for ego
-        //                 planner_cmd_pub.publish(flag_super_msg);//for super 
-        //             }
-        //             Ego_traj_count++;
-        //             if (Ego_traj_count == Ego_traj_size)
-        //             {
-        //                 need_GeneTraj = false;
-        //                 // Ego_traj_count = flag_state.now_id;
-        //                 Ego_traj_count = flag_super_state.now_id;
-        //             }
-        //         }
-        //     }
-        //     geometry_msgs::PoseStamped nmpc_posfdb_msg;
-        //     nmpc_posfdb_msg.pose.position.x = pos_fcu(0);
-        //     nmpc_posfdb_msg.pose.position.y = pos_fcu(1);
-        //     nmpc_posfdb_msg.pose.position.z = pos_fcu(2);
-        //     nmpc_posfdb_pub.publish(nmpc_posfdb_msg);
-
-        //     geometry_msgs::PoseStamped nmpc_posref_msg;
-        //     nmpc_posref_msg.pose.position.x = nmpc_traj_pt[0].pos(0);
-        //     nmpc_posref_msg.pose.position.y = nmpc_traj_pt[0].pos(1);
-        //     nmpc_posref_msg.pose.position.z = nmpc_traj_pt[0].pos(2);
-        //     nmpc_posref_pub.publish(nmpc_posref_msg);
-
-        //     // NMPC data update
-        //     nmpc_current_states << pos_fcu(0),pos_fcu(1),pos_fcu(2),vel_fcu(0),vel_fcu(1),vel_fcu(2),quat_fcu.w(),quat_fcu.x(),quat_fcu.y(),quat_fcu.z();
-        //     nmpc_desired_states << 
-        //     nmpc_traj_pt[0].pos(0), nmpc_traj_pt[0].pos(1), nmpc_traj_pt[0].pos(2),
-        //     nmpc_traj_pt[0].vel(0), nmpc_traj_pt[0].vel(1), nmpc_traj_pt[0].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
-        //     nmpc_traj_pt[1].pos(0), nmpc_traj_pt[1].pos(1), nmpc_traj_pt[1].pos(2), 
-        //     nmpc_traj_pt[1].vel(0), nmpc_traj_pt[1].vel(1), nmpc_traj_pt[1].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
-        //     nmpc_traj_pt[2].pos(0), nmpc_traj_pt[2].pos(1), nmpc_traj_pt[2].pos(2), 
-        //     nmpc_traj_pt[2].vel(0), nmpc_traj_pt[2].vel(1), nmpc_traj_pt[2].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
-        //     nmpc_traj_pt[3].pos(0), nmpc_traj_pt[3].pos(1), nmpc_traj_pt[3].pos(2), 
-        //     nmpc_traj_pt[3].vel(0), nmpc_traj_pt[3].vel(1), nmpc_traj_pt[3].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
-        //     nmpc_traj_pt[4].pos(0), nmpc_traj_pt[4].pos(1), nmpc_traj_pt[4].pos(2), 
-        //     nmpc_traj_pt[4].vel(0), nmpc_traj_pt[4].vel(1), nmpc_traj_pt[4].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z(), 
-        //     nmpc_traj_pt[5].pos(0), nmpc_traj_pt[5].pos(1), nmpc_traj_pt[5].pos(2), 
-        //     nmpc_traj_pt[5].vel(0), nmpc_traj_pt[5].vel(1), nmpc_traj_pt[5].vel(2), quat_yaw.w(), quat_yaw.x(), quat_yaw.y(), quat_yaw.z();  //期望的位置
-        //     nmpc_desired_controls << 9.8, 0, 0, 0;                  //期望的控制量
-        //     // NMPC solution
-        //     younger_ctrl.optimal_solution(nmpc_current_states, nmpc_desired_states, nmpc_desired_controls);
-
-        //     if(younger_ctrl.Acc2Trust())
-        //     {
-        //         mavros_msgs::AttitudeTarget msg;
-        //         msg.header.frame_id = std::string("NMPC");
-        //         msg.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
-        //         msg.thrust = younger_ctrl.get_control_command()(0);
-        //         msg.body_rate.x = younger_ctrl.get_control_command()(1);
-        //         msg.body_rate.y = younger_ctrl.get_control_command()(2);
-        //         msg.body_rate.z = younger_ctrl.get_control_command()(3);
-
-        //         //std::cout<<"thrust is "<<younger_ctrl.get_control_command()(0)<<std::endl;
-        //         local_attitude_pub.publish(msg);
-        //     }
+                
          }
+        
+        if(cmd == 9)
+        {
+            mavros_msgs::AttitudeTarget target_arm;
+	        target_arm.header.frame_id = std::string("FCU");
+            target_arm.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE |
+                            mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE |
+                            mavros_msgs::AttitudeTarget::IGNORE_YAW_RATE;
+            target_arm.orientation.x = 0.0;
+            target_arm.orientation.y = 0.0;
+            target_arm.orientation.z = 0.0;
+            target_arm.orientation.w = 1.0;
+            target_arm.thrust = 0.19;
+            local_attitude_pub.publish(target_arm);
+        }
 
         
         rate.sleep();

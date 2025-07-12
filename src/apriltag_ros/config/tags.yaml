@@ -21,17 +21,17 @@
 #   ]
 standalone_tags:
   [
-      {id: 0, size: 0.16, name: Tag36h11_0 }, # id 对应于生成标签的ID号，size对应标签的大小(单位:米)
-      {id: 1, size: 0.16, name: Tag36h11_1 },
-      {id: 2, size: 0.16, name: Tag36h11_2 },
-      {id: 3, size: 0.16, name: Tag36h11_3 },
-      {id: 4, size: 0.16, name: Tag36h11_4 },
-      {id: 5, size: 0.16, name: Tag36h11_5 },
-      {id: 6, size: 0.16, name: Tag36h11_6 },
-      {id: 7, size: 0.16, name: Tag36h11_7 },
-      {id: 8, size: 0.16, name: Tag36h11_8 },
-      {id: 9, size: 0.16, name: Tag36h11_9 },
-      {id: 10, size: 0.16, name: Tag36h11_10 },
+      {id: 0, size: 0.14, name: Tag36h11_0 }, # id 对应于生成标签的ID号，size对应标签的大小(单位:米)
+      {id: 1, size: 0.14, name: Tag36h11_1 },
+      {id: 2, size: 0.14, name: Tag36h11_2 },
+      {id: 3, size: 0.14, name: Tag36h11_3 },
+      {id: 4, size: 0.14, name: Tag36h11_4 },
+      {id: 5, size: 0.14, name: Tag36h11_5 },
+      {id: 6, size: 0.14, name: Tag36h11_6 },
+      {id: 7, size: 0.14, name: Tag36h11_7 },
+      {id: 8, size: 0.14, name: Tag36h11_8 },
+      {id: 9, size: 0.14, name: Tag36h11_9 },
+      {id: 10, size: 0.14, name: Tag36h11_10 },
   ]
 # ## Tag bundle definitions
 # ### Remarks

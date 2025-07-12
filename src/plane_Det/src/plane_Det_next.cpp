@@ -350,10 +350,10 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
         // double wallWidthTrue = 2.45;
         // double wallHightTrue = 1.8;
 
-        double wallWidthTrue = 2.70;
-        double wallHightTrue = 1.80;
+        double wallWidthTrue = 2.40;
+        double wallHightTrue = 2.0;
         double doorWidthPos_NearLeft = 0.35;
-        double doorHightPos_NearFloor = 0.9;
+        double doorHightPos_NearFloor = 1.8;
 
 
         // if((cloud_ymax-cloud_ymin)>0.95*wallWidthTrue && (cloud_xmax-cloud_xmin)<1.05*wallWidthTrue){
@@ -384,7 +384,7 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
             circle_pose.pose.position.x = planeLeftPosX + doorWidthPos_NearLeft*sin(detPlane_angle);
-            circle_pose.pose.position.y = planeLeftPosY - doorWidthPos_NearLeft*cos(detPlane_angle)-0.3;
+            circle_pose.pose.position.y = planeLeftPosY - doorWidthPos_NearLeft*cos(detPlane_angle)-0.32;
             circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
@@ -784,7 +784,7 @@ Eigen::Vector4d ransacFitOnePlane(std::vector<Point>& points_input,pcl::PointClo
         // }
         //根据先验位置进行修改
         if(task == 2){
-            if(-plane[3]/plane[0]>(3.5)*1.2 ||-plane[3]/plane[0]<(3.5)*0.8 || abs(plane[1]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
+            if(-plane[3]/plane[0]>(3)*1.2 ||-plane[3]/plane[0]<(3)*0.8 || abs(plane[1]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
                 // std::cout<<"A: "<<-plane[0]/plane[3]<<std::endl;
                 continue;
             }
@@ -987,7 +987,7 @@ void ransacFitCircle(pcl::PointCloud<pcl::PointXYZ>::Ptr points, int task){
 
         }
     }else if(task == 5 || task ==6 ){
-        if(abs(coefficients->values[5])>0.95 && abs(coefficients->values[4])<0.2 && abs(coefficients->values[6])<0.5){
+        if(abs(coefficients->values[4])>0.95 && abs(coefficients->values[5])<0.2 && abs(coefficients->values[6])<0.5){
             
             std::cout<< "circle pos:"<<coefficients->values[0]<<" "<<coefficients->values[1]<<" "<<coefficients->values[2]<<std::endl;
             std::cout<< "circle size:"<<coefficients->values[3]<<" "<<coefficients->values[4]<<" "<<coefficients->values[5]<<" "<<coefficients->values[6]<<std::endl;
@@ -1019,7 +1019,7 @@ void ransacFitCircle(pcl::PointCloud<pcl::PointXYZ>::Ptr points, int task){
             circle_pose.header.frame_id = "world";
             circle_pose.pose.position.x = coefficients->values[0];
             circle_pose.pose.position.y = coefficients->values[1];
-            circle_pose.pose.position.z = coefficients->values[2]+0.2;
+            circle_pose.pose.position.z = coefficients->values[2];
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
             circle_pose.pose.orientation.z = 0;
@@ -1211,11 +1211,11 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPreProcess(pcl::PointCloud<pcl::PointXY
     double x_min,x_max,y_min,y_max,z_min,z_max;
     if(task == 2){
         x_min = current_pos.x() + 0;
-        x_max = current_pos.x() + 8;
+        x_max = current_pos.x() + 5;
         y_min = current_pos.y() - 3;
         y_max = current_pos.y() + 3; 
         z_min = 0.2;
-        z_max = 2;
+        z_max = 2.5;
     }else if(task == 3){
         x_min = current_pos.x() - 5;
         x_max = current_pos.x() + 5;
@@ -1231,11 +1231,11 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPreProcess(pcl::PointCloud<pcl::PointXY
         z_min = 0.8;
         z_max = 2.5;
     }else if(task == 5){
-        x_min = current_pos.x() - 3;
-        x_max = current_pos.x() + 3;
-        y_min = current_pos.y() + 0;
-        y_max = current_pos.y() + 5; 
-        z_min = 1.8;
+        x_min = current_pos.x() + 0;
+        x_max = current_pos.x() + 5;
+        y_min = current_pos.y() - 1.4;
+        y_max = current_pos.y() + 1.4; 
+        z_min = 0.8;
         z_max = 3.0;
     }else if(task == 6){
         x_min = current_pos.x() - 3;
@@ -1247,8 +1247,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPreProcess(pcl::PointCloud<pcl::PointXY
     }else if(task == 7){
         x_min = current_pos.x() + 0;
         x_max = current_pos.x() + 5;
-        y_min = current_pos.y() - 2;
-        y_max = current_pos.y() + 2; 
+        y_min = current_pos.y() - 1.5;
+        y_max = current_pos.y() + 1.5; 
         z_min = 0.8;
         z_max = 2.5;
     }

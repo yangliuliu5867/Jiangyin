@@ -18,9 +18,12 @@ geometry_msgs::PoseStamped msg_pos;
 
 // float bias_x[5] = {0.32, -0.32, 0, 0.32, -0.32};  // 0 1 2 3 4
 // float bias_y[5] = {0.31, 0.31, 0, -0.31, -0.31};
-float bias_x[5] = {0, 0, 0, 0, 0};
-float bias_y[5] = {0, 0, 0, 0, 0};
-
+// float bias_x[5] = {0, 0, 0, 0, 0};
+// float bias_y[5] = {0, 0, 0, 0, 0};
+float bias_x[5] = {-0.40, 0.40, 0, -0.40 , 0.40};  // 0 1 2 3 4
+float bias_y[5] = {-0.40, -0.40, 0, 0.40, 0.40};
+// float bias_x[5] = {0.345, -0.345, 0, 0.345 , -0.345};  // 0 1 2 3 4
+// float bias_y[5] = {0.34, 0.34, 0, -0.34, -0.34};
 float bias_z[5] = {0, 0, 0, 0, 0};
 
 class Localizer{
@@ -59,7 +62,7 @@ void Localizer::number_callback(const apriltag_ros::AprilTagDetectionArray::Cons
             pos_temp[0] = msg->detections[i].pose.pose.pose.position.x + bias_x[tag_id]; // get position message from /tag_detections
             pos_temp[1] = msg->detections[i].pose.pose.pose.position.y + bias_y[tag_id];
             pos_temp[2] = msg->detections[i].pose.pose.pose.position.z + bias_z[tag_id];
-
+            cout << "tag position: " << pos_temp[0] << " " << pos_temp[1] << " " << pos_temp[2] << endl;
             ori[0] = msg->detections[i].pose.pose.pose.orientation.x;  // get orientation message from /tag_detections
             ori[1] = msg->detections[i].pose.pose.pose.orientation.y;
             ori[2] = msg->detections[i].pose.pose.pose.orientation.z;
