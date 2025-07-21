@@ -57,6 +57,8 @@
         <param name = "nmpc_mR_pitch" type = "double" value = "0.1" />
         <param name = "nmpc_mR_yaw" type = "double"   value = "0.1" />
 
+        <param name = "nmpc_hover_thrust" type = "double"  value = "0.196" />
+
         <!-- For NMPC -->
         <!-- <param name = "nmpc_Qposx" type = "double" value = "40.0" />
         <param name = "nmpc_Qposy" type = "double" value = "40.0" />

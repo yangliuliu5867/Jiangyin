@@ -12,5 +12,7 @@
 **.vscode
 
 /src/fsm_ctrl/fsm_ctrl/src/NMPC_Controller.cpp
+/src/fsm_ctrl/fsm_ctrl/src/NMPC_test.cpp
 /src/fsm_ctrl/fsm_ctrl/include/fsm_ctrl/NMPC_Controller.hpp
+/src/fsm_ctrl/fsm_ctrl/include/fsm_ctrl/NMPC_test.hpp
 /src/fsm_ctrl/fsm_ctrl/launch/single.launch

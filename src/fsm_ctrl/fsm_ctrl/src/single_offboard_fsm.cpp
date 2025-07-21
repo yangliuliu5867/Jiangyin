@@ -81,7 +81,7 @@ static int yaw_print_count = 0;
 
 static vector<TypePoint> Ego_traj;
 static int Ego_traj_count = 0;                     // 当前飞往点的标号
-static int Ego_traj_size = 11;
+static int Ego_traj_size = 1;
 static bool need_GeneTraj = true;                 // 是否需要修改轨迹
 
 //存放历史一段时间内的位姿
@@ -115,7 +115,7 @@ static Eigen::Vector3d ring3_pose = {7.2, -0.8, 1.0};
 static vector<Eigen::Vector3d> ring3_filter;
 static int ring3_filter_size = 5;
 //ring2
-static Eigen::Vector3d ring2_pose = {11.17, 0.168, 1.65};   
+static Eigen::Vector3d ring2_pose = {2.0, 0.0, 1.0};   
 static vector<Eigen::Vector3d> ring2_filter;
 static int ring2_filter_size = 7;
 static bool is_arrive_ring2 = false;
@@ -136,6 +136,10 @@ static double doublering2_start_time = 0;
 static double doublering1_end_time = 0; 
 static double doublering2_end_time = 0; 
 
+//ap pre
+static Eigen::Vector3d dynringpost_pose = {3.0, 0.0, 1.00};
+static Eigen::Vector3d appre_pose = {4.8, 0.8, 1.00};
+
 static Eigen::Vector3d double_pose1 = {7.57, 1.15, 1.65};
 static vector<Eigen::Vector3d> dou1_filter;
 static int dou1_filter_size = 5;
@@ -147,8 +151,12 @@ static bool getring1 = false;
 static bool getring2 = false;
 
 
+static int count1 = 0;
+static int count2 = 0;
+
+
 //apriltag
-static Eigen::Vector3d ap_pose = {13.935, -0.005, 1.28};
+static Eigen::Vector3d ap_pose = {5.0, 1.1, 1.00};
 static vector<Eigen::Vector3d> ap_filter;
 static vector<Eigen::Vector3d> ap_his_pose;
 static int ap_filter_size = 5;
@@ -1094,7 +1102,7 @@ void EgoAddPoint(int _id, int _mode, int _is_map, double _x, double _y, double _
 void EgoGeneTraj()
 {
     Ego_traj.clear();
-    EgoAddPoint(0, 2, 0, 1.0, 0.0, 1.3, 0.0, 2);
+    EgoAddPoint(0, 2, 0, dynringpost_pose(0), dynringpost_pose(1), 1.0, 0.0, 2);
     EgoAddPoint(1, 2, 0, 2.0, 0.0, 1.3, 0.0, 2);
     EgoAddPoint(2, 3, 0, tunnel_pose1(0)-0.5, tunnel_pose1(1), 1.3, 0.0, 0);
     EgoAddPoint(3, 3, 0, tunnel_pose1(0)+0.5, tunnel_pose1(1), 1.3, 0.0, 7);
@@ -1385,6 +1393,7 @@ int main(int argc, char **argv)
     double nmpc_mQ_vx, nmpc_mQ_vy, nmpc_mQ_vz;
     double nmpc_mQ_q1, nmpc_mQ_q2, nmpc_mQ_q3, nmpc_mQ_q4;
     double nmpc_mR_a_BZ, nmpc_mR_roll, nmpc_mR_pitch, nmpc_mR_yaw;
+    double nmpc_hover_thrust;
     // parameters
     nh.param("single_offboard_fsm/kp_x", kp(0), 0.0);
     nh.param("single_offboard_fsm/kp_y", kp(1), 0.0);
@@ -1424,12 +1433,12 @@ int main(int argc, char **argv)
     nh.param("single_offboard_fsm/nmpc_mR_roll", nmpc_mR_roll, 0.0);
     nh.param("single_offboard_fsm/nmpc_mR_pitch", nmpc_mR_pitch, 0.0);
     nh.param("single_offboard_fsm/nmpc_mR_yaw", nmpc_mR_yaw, 0.0);
+    nh.param("single_offboard_fsm/nmpc_hover_thrust", nmpc_hover_thrust, 0.196);
 
     // NMPC Parameter set
     int nmpc_predict_step = 5;
     int nmpc_timestamp = 0;
     float nmpc_sample_time = 0.1;
-    double hover_thrust = 0.196;
     int nmpc_test_state=0;
     int nmpc_test_time_cnt=0;
     ros::Time begin_time = ros::Time::now();
@@ -1441,7 +1450,7 @@ int main(int argc, char **argv)
     m_R_param << nmpc_mR_a_BZ, nmpc_mR_roll, nmpc_mR_pitch, nmpc_mR_yaw;
 
 
-    NMPC_Ctrller younger_ctrl(nmpc_predict_step, nmpc_sample_time, INTERV, hover_thrust, m_Q_param, m_R_param);
+    NMPC_Ctrller younger_ctrl(nmpc_predict_step, nmpc_sample_time, INTERV, nmpc_hover_thrust, m_Q_param, m_R_param);
 
     // NMPC States Init
     Eigen::Matrix<float, 10, 1> nmpc_current_states;   //无人机期望状态（控制目标）   10*1
@@ -1543,186 +1552,6 @@ int main(int argc, char **argv)
     double w_y_cmd = 0;
     double w_z_cmd = 0;
 
-
-    ros::Time start_time = ros::Time::now();
-            current_states.clear();
-            desired_states.clear();
-            quat_yaw = EulerToQuat(0, 0, YawSmooth(yaw_now, -3.13));
-            std::cout << "quat_yaw: " << quat_yaw.x() << " " << quat_yaw.y() << " " << quat_yaw.z() << " " << quat_yaw.w() << std::endl;
-
-            current_states.push_back(5.22315);
-            current_states.push_back(-4.17699);
-            current_states.push_back(1.7552);
-            current_states.push_back(-0.135281);
-            current_states.push_back(-0.462223);
-            current_states.push_back(0.0219036);
-            current_states.push_back(-0.999705);
-            current_states.push_back(0.00541663);
-            current_states.push_back(-0.00187193);
-            current_states.push_back(0.0236227);
-
-            desired_states.push_back(5.16159); 
-            desired_states.push_back(-4.23005);
-            desired_states.push_back(1.61903);
-            desired_states.push_back(-0.103842);
-            desired_states.push_back(-0.413652);
-            desired_states.push_back(0.0170752);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-            desired_states.push_back(5.15672); 
-            desired_states.push_back(-4.25104);
-            desired_states.push_back(1.6199);
-            desired_states.push_back(-0.0914452);
-            desired_states.push_back(-0.425836);
-            desired_states.push_back(0.0176725);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-            desired_states.push_back(5.15243); 
-            desired_states.push_back(-4.27261);
-            desired_states.push_back(1.6208);
-            desired_states.push_back(-0.0802961);
-            desired_states.push_back(-0.436872);
-            desired_states.push_back(0.0182115);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-            desired_states.push_back(5.14867); 
-            desired_states.push_back(-4.29471);
-            desired_states.push_back(1.62172);
-            desired_states.push_back(-0.0703226);
-            desired_states.push_back(-0.446923);
-            desired_states.push_back(0.0187);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-            desired_states.push_back(5.14538); 
-            desired_states.push_back(-4.31729);
-            desired_states.push_back(1.62267);
-            desired_states.push_back(-0.0614544);
-            desired_states.push_back(-0.456134);
-            desired_states.push_back(0.0191446);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-            desired_states.push_back(5.1425); 
-            desired_states.push_back(-4.34031);
-            desired_states.push_back(1.62363);
-            desired_states.push_back(-0.0536222);
-            desired_states.push_back(-0.464636);
-            desired_states.push_back(0.0195516);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-            desired_states.push_back(5.14); 
-            desired_states.push_back(-4.36374);
-            desired_states.push_back(1.62462);
-            desired_states.push_back(-0.0467585);
-            desired_states.push_back(-0.472538);
-            desired_states.push_back(0.0199262);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-            desired_states.push_back(5.13781); 
-            desired_states.push_back(-4.38756);
-            desired_states.push_back(1.62563);
-            desired_states.push_back(-0.0407971);
-            desired_states.push_back(-0.479934);
-            desired_states.push_back(0.020273);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-            desired_states.push_back(5.1359); 
-            desired_states.push_back(-4.41173);
-            desired_states.push_back(1.62665);
-            desired_states.push_back(-0.0356735);
-            desired_states.push_back(-0.486901);
-            desired_states.push_back(0.0205956);
-            desired_states.push_back(quat_yaw.w());
-            desired_states.push_back(quat_yaw.x());
-            desired_states.push_back(quat_yaw.y());
-            desired_states.push_back(quat_yaw.z());
-
-             
-            for(int i = 0; i < nmpc_simple_predict_step; i++)
-            {
-                desired_states.push_back(0.0); 
-                desired_states.push_back(0.0);
-                desired_states.push_back(0.0);
-                desired_states.push_back(9.8015);
-            }
-
-            nmpc_ctrl_simple.optimal_solution(current_states, desired_states);
-
-            double acc_z_command = nmpc_ctrl_simple.getAcc_zCommand();
-            Eigen::Vector3d w_command = nmpc_ctrl_simple.getwCommand();
-
-            target_att.header.frame_id = std::string("FCU");
-            target_att.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
-
-            target_att.body_rate.x = w_command.x();
-            target_att.body_rate.y = w_command.y();
-            target_att.body_rate.z = w_command.z();
-
-            target_att.thrust = acc_z_command;
-            local_attitude_pub.publish(target_att);
-            std::cout << "acc_z_command: " << acc_z_command << std::endl;
-            std::cout << "w_command: " << w_command << std::endl;
-
-            ros::Time end_time = ros::Time::now();
-            ros::Duration elapsed_time = end_time - start_time;
-            if(elapsed_time.toSec() * 1000 > 12)
-            {ROS_WARN("NMPC used time: %.1f ms", elapsed_time.toSec() * 1000);}
-
-            fsm_ctrl::nmpc_state nmpc_state_msg;
-
-            for (int i = 0; i < 9; i++) {
-                nmpc_state_msg.pos_ref[i].x = desired_states[i * 10];     // x坐标赋值
-                nmpc_state_msg.pos_ref[i].y = desired_states[i * 10 + 1];     // y坐标赋值
-                nmpc_state_msg.pos_ref[i].z = desired_states[i * 10 + 2];     // z坐标赋值
-                nmpc_state_msg.vel_ref[i].x = desired_states[i * 10 + 3];     // x速度赋值
-                nmpc_state_msg.vel_ref[i].y = desired_states[i * 10 + 4];     // y速度赋值
-                nmpc_state_msg.vel_ref[i].z = desired_states[i * 10 + 5];     // z速度赋值
-            }
-
-            nmpc_state_msg.pos_fdb.x = current_states[0];
-            nmpc_state_msg.pos_fdb.y = current_states[1];
-            nmpc_state_msg.pos_fdb.z = current_states[2];
-
-            nmpc_state_msg.vel_fdb.x = current_states[3];
-            nmpc_state_msg.vel_fdb.y = current_states[4];
-            nmpc_state_msg.vel_fdb.z = current_states[5];
-
-            nmpc_state_msg.attitude_fdb.x = current_states[6];
-            nmpc_state_msg.attitude_fdb.y = current_states[7];
-            nmpc_state_msg.attitude_fdb.z = current_states[8];
-            nmpc_state_msg.attitude_fdb.w = current_states[9];
-
-            nmpc_state_msg.target.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ROLL_RATE |
-                                  mavros_msgs::AttitudeTarget::IGNORE_PITCH_RATE;
-            nmpc_state_msg.target.body_rate.x = w_command.x();
-            nmpc_state_msg.target.body_rate.y = w_command.y();
-            nmpc_state_msg.target.body_rate.z = w_command.z();
-            nmpc_state_msg.target.thrust = acc_z_command;
-
-            nmpc_state_pub.publish(nmpc_state_msg);
 
 
 
@@ -2288,165 +2117,216 @@ int main(int argc, char **argv)
         
             if( task1 == 6 ){
               
-                if (is_arrive_ring2 == false && is_crossed_ring2 == false)
-                {
-                    double delta_pos_x = 0.6 * Clamp_Single(ring2_pose(0) - pos_fcu[0], 0.1);
-                    for (int i=0;i<6;i++)
-                    {
-                        nmpc_traj_pt[i].pos(0) = ring2_pose(0) - 1 + 0.01*ring2_approach_count;    //
-                        nmpc_traj_pt[i].pos(1) = ring2_pose(1) + i*delta_pos_x;;
-                        nmpc_traj_pt[i].pos(2) = ring2_pose(2);
-                        nmpc_traj_pt[i].vel(0) = 0.0;
-                        nmpc_traj_pt[i].vel(1) = 0.0;
-                        nmpc_traj_pt[i].vel(2) = 0.0;
-                    }
-                    cout << "Flying to Ring2!  [Delta_x, Delta_y]: [" << ring2_pose(0)-pos_fcu[0] << ", " << ring2_pose(1)-pos_fcu[1] << "]" << endl;
-                    ring2_approach_count++;
-                    if (ring2_approach_count == 100)
-                    {
-                        is_arrive_ring2 = true;
-                    }
-                }
-                else if (is_arrive_ring2 == true && is_crossed_ring2 == false)
-                {
-                    for (int i=0;i<6;i++)
-                    {
-                        nmpc_traj_pt[i].pos(0) = ring2_pose(0) + 0.01*ring2_cross_count;
-                        nmpc_traj_pt[i].pos(1) = ring2_pose(1);
-                        nmpc_traj_pt[i].pos(2) = ring2_pose(2);
-                        nmpc_traj_pt[i].vel(0) = 0.0;
-                        nmpc_traj_pt[i].vel(1) = 0.0;
-                        nmpc_traj_pt[i].vel(2) = 0.0;
-                    }
-                    cout << "Crossing Ring2!  " << ring2_cross_count << endl;
-                    ring2_cross_count++;
-                    if (ring2_cross_count == 100)
-                    {
-                        is_crossed_ring2 = true;
-                    }
-                }
-                else if (is_arrive_ring2 == true && is_crossed_ring2 == true)
-                {
-                    if (is_send_r2_postpoint == false)
-                    {
-                        TypePoint ap_target;
-                        ap_target.id = Ego_traj_size;
-                        ap_target.mode = 1;
-                        ap_target.is_map = 0;
-                        ap_target.x = 13.249;
-                        ap_target.y = 0.128;
-                        ap_target.z = 1.28;
-                        // ap_target.id = 2;
-                        // ap_target.mode = 2;
-                        // ap_target.is_map = 0;
-                        // ap_target.x = ring2_pose(0)+1;
-                        // ap_target.y = ring2_pose(1);
-                        // ap_target.z = 0.5;
-                        EGO_flag_aimpos(ap_target);
-                        ROS_INFO("Flying to Ring2 Postpoint!");
-                        // ROS_INFO("Publishing point %d", Ego_traj_size);
-                        ROS_INFO("finish");
-                        // ROS_INFO("Flag 2: x: %f, y: %f, z: %f",  ap_target.x, ap_target.y, ap_target.z);
-                        ego_flag_pub.publish(flag_traj_msg);
-                        is_send_r2_postpoint= true;
+                // if (is_arrive_ring2 == false && is_crossed_ring2 == false)
+                // {
+                //     double delta_pos_y = 0.6 * Clamp_Single(ring2_pose(1) - pos_fcu[1], 0.1);
+                //     for (int i=0;i<6;i++)
+                //     {
+                //         nmpc_traj_pt[i].pos(0) = ring2_pose(0) - 1 + 0.01*ring2_approach_count;    //
+                //         nmpc_traj_pt[i].pos(1) = ring2_pose(1) + i*delta_pos_y;
+                //         nmpc_traj_pt[i].pos(2) = ring2_pose(2);
+                //         nmpc_traj_pt[i].vel(0) = 0.0;
+                //         nmpc_traj_pt[i].vel(1) = 0.0;
+                //         nmpc_traj_pt[i].vel(2) = 0.0;
+                //     }
+                //     cout << "Flying to Ring2!  [Delta_x, Delta_y]: [" << ring2_pose(0)-pos_fcu[0] << ", " << ring2_pose(1)-pos_fcu[1] << "]" << endl;
+                //     ring2_approach_count++;
+                //     if (ring2_approach_count == 100)
+                //     {
+                //         is_arrive_ring2 = true;
+                //     }
+                // }
+                // else if (is_arrive_ring2 == true && is_crossed_ring2 == false)
+                // {
+                //     for (int i=0;i<6;i++)
+                //     {
+                //         nmpc_traj_pt[i].pos(0) = ring2_pose(0) + 0.01*ring2_cross_count;
+                //         nmpc_traj_pt[i].pos(1) = ring2_pose(1);
+                //         nmpc_traj_pt[i].pos(2) = ring2_pose(2);
+                //         nmpc_traj_pt[i].vel(0) = 0.0;
+                //         nmpc_traj_pt[i].vel(1) = 0.0;
+                //         nmpc_traj_pt[i].vel(2) = 0.0;
+                //     }
+                //     cout << "Crossing Ring2!  " << ring2_cross_count << endl;
+                //     ring2_cross_count++;
+                //     if (ring2_cross_count == 100)
+                //     {
+                //         is_crossed_ring2 = true;
+                //     }
+                // }
+                // else if (is_arrive_ring2 == true && is_crossed_ring2 == true)
+                // if (is_arrive_ring2 == true && is_crossed_ring2 == true)
+                // {
+                    
+                    if (count1<150)
+                    {   
+                        double delta_pos_x = (appre_pose(0)-dynringpost_pose(0))/150;
+                        double delta_pos_y = (appre_pose(1)-dynringpost_pose(1))/150;
+                        double delta_pos_z = 0.15 * Clamp_Single(appre_pose(2) - pos_fcu[2], 0.1);
+                        cout << "flying to ring post point!" << endl;
+                        count1++;
+                        for (int i=0;i<6;i++)
+                        {
+                            nmpc_traj_pt[i].pos(0) = dynringpost_pose(0) + delta_pos_x*count1;
+                            nmpc_traj_pt[i].pos(1) = dynringpost_pose(1) + delta_pos_y*count1;
+                            nmpc_traj_pt[i].pos(2) = 1.0;
+                            nmpc_traj_pt[i].vel(0) = 0.0;
+                            nmpc_traj_pt[i].vel(1) = 0.0;
+                            nmpc_traj_pt[i].vel(2) = 0.0;
+                            cout << "nmpc_traj_pt[i].pos(0) is :" << nmpc_traj_pt[i].pos(0) <<  endl;
+                            cout << "nmpc_traj_pt[i].pos(1) is :" << nmpc_traj_pt[i].pos(1) <<  endl;
+                            cout << "nmpc_traj_pt[i].pos(2) is :" << nmpc_traj_pt[i].pos(2) <<  endl;
+                        }  
                     }
                     else
                     {
-                        PrintInfo(r2_print_count, 20, "Flying to Ring2 Postpoint!!!");
+                        is_arrive_r2_postpoint = true;
                     }
-                    if (flag_state.touch_goal == true)
-                    {
-                        if (r2_postpoint_lock < 10)
-                        {
-                            r2_postpoint_lock++;
-                        }
-                        else
-                        {
-                            is_arrive_r2_postpoint = true;
-                            cout << "Arrive Ring2 Postpoint!" << endl;
-                            cout << "Arrive Ring2 Postpoint!" << endl;
-                            cout << "Arrive Ring2 Postpoint!" << endl;
-                        }
-                    }
-                }
+                    // if (is_send_r2_postpoint == false)
+                    // {
+                    //     TypePoint ap_target;
+                    //     ap_target.id = Ego_traj_size;
+                    //     ap_target.mode = 1;
+                    //     ap_target.is_map = 0;
+                    //     ap_target.x = 13.249;
+                    //     ap_target.y = 0.128;
+                    //     ap_target.z = 1.28;
+                    //     // ap_target.id = 2;
+                    //     // ap_target.mode = 2;
+                    //     // ap_target.is_map = 0;
+                    //     // ap_target.x = ring2_pose(0)+1;
+                    //     // ap_target.y = ring2_pose(1);
+                    //     // ap_target.z = 0.5;
+                    //     EGO_flag_aimpos(ap_target);
+                    //     ROS_INFO("Flying to Ring2 Postpoint!");
+                    //     // ROS_INFO("Publishing point %d", Ego_traj_size);
+                    //     ROS_INFO("finish");
+                    //     // ROS_INFO("Flag 2: x: %f, y: %f, z: %f",  ap_target.x, ap_target.y, ap_target.z);
+                    //     ego_flag_pub.publish(flag_traj_msg);
+                    //     is_send_r2_postpoint= true;
+                    // }
+                    // else
+                    // {
+                    //     PrintInfo(r2_print_count, 20, "Flying to Ring2 Postpoint!!!");
+                    // }
+                    // if (flag_state.touch_goal == true)
+                    // {
+                    //     if (r2_postpoint_lock < 10)
+                    //     {
+                    //         r2_postpoint_lock++;
+                    //     }
+                    //     else
+                    //     {
+                    //         is_arrive_r2_postpoint = true;
+                    //         cout << "Arrive Ring2 Postpoint!" << endl;
+                    //         cout << "Arrive Ring2 Postpoint!" << endl;
+                    //         cout << "Arrive Ring2 Postpoint!" << endl;
+                    //     }
+                    // }
+                // }
             }
 
             if(is_arrive_r2_postpoint == true){
                 if (is_found_ap == false && is_arrive_ap_prepoint == false)
                     {
-                    PrintInfo(ap_print_count, 50, "Searching Apriltag!"); 
-                    if (ap_search_lock == false)
-                    {
-                        if (flag_state.touch_goal == true)
-                        {
-                            search_orient++;
-                            TypePoint search_point;
-                            search_point.id = Ego_traj_size + search_orient;
-                            search_point.mode = 2;
-                            search_point.is_map = 0;
-                            search_point.x = ap_pose(0);
-                            search_point.y = ap_pose(1) + pow(-1, search_orient%2)*1;
-                            search_point.z = 1.28;
-                            EGO_flag_aimpos(search_point);
-                            ROS_INFO("Publishing point %d", Ego_traj_size+search_orient);
-                            ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_size+search_orient, search_point.x, search_point.y, search_point.z);
-                            ROS_INFO("Searching index %d", search_orient);
-                            ego_flag_pub.publish(flag_traj_msg);
-                            ap_search_lock = true;
-                        }
-                    }
-                    else
-                    {
-                        if (ap_search_lock_count < 10)
-                        {
-                            ap_search_lock_count++;
-                        }
-                        else
-                        {
-                            ap_search_lock_count = 0;
-                            ap_search_lock = false;
-                        }
-                    }   
+                    PrintInfo(ap_print_count, 50, "waitingfor Apriltag!"); 
+                    // if (ap_search_lock == false)
+                    // {
+                    //     if (flag_state.touch_goal == true)
+                    //     {
+                    //         search_orient++;
+                    //         TypePoint search_point;
+                    //         search_point.id = Ego_traj_size + search_orient;
+                    //         search_point.mode = 2;
+                    //         search_point.is_map = 0;
+                    //         search_point.x = ap_pose(0);
+                    //         search_point.y = ap_pose(1) + pow(-1, search_orient%2)*1;
+                    //         search_point.z = 1.28;
+                    //         EGO_flag_aimpos(search_point);
+                    //         ROS_INFO("Publishing point %d", Ego_traj_size+search_orient);
+                    //         ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_size+search_orient, search_point.x, search_point.y, search_point.z);
+                    //         ROS_INFO("Searching index %d", search_orient);
+                    //         ego_flag_pub.publish(flag_traj_msg);
+                    //         ap_search_lock = true;
+                    //     }
+                    // }
+                    // else
+                    // {
+                    //     if (ap_search_lock_count < 10)
+                    //     {
+                    //         ap_search_lock_count++;
+                    //     }
+                    //     else
+                    //     {
+                    //         ap_search_lock_count = 0;
+                    //         ap_search_lock = false;
+                    //     }
+                    // }   
                     }            
                 if (is_found_ap == true && is_arrive_ap_prepoint == false){
 
-                    if (is_send_ap_prepoint == false)
-                    {
-                        if (search_orient == 0)
+                    if (count2<150)
+                    {   
+                        double delta_pos_x = (ap_pose(0)-appre_pose(0))/150;
+                        double delta_pos_y = (ap_pose(1)-appre_pose(1))/150;
+                        double delta_pos_z = 0.15 * Clamp_Single(appre_pose(2) - pos_fcu[2], 0.1);
+                        cout << "flying to ring post point!" << endl;
+                        count2++;
+                        for (int i=0;i<6;i++)
                         {
-                            search_orient = 1;
-                        }
-                        TypePoint ap_target;
-                        ap_target.id = Ego_traj_size + search_orient;
-                        //ap_target.id =1;
-                        ap_target.mode = 2;
-                        ap_target.is_map = 0;
-                        ap_target.x = ap_pose(0);
-                        ap_target.y = ap_pose(1);
-                        ap_target.z = 1.28;
-                        EGO_flag_aimpos(ap_target);
-                        //ROS_INFO("Flying to Apriltag Prepoint!");
-                        //ROS_INFO("Publishing point %d", Ego_traj_size+search_orient);
-                        //ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_size+search_orient, ap_target.x, ap_target.y, ap_target.z);
-                        ego_flag_pub.publish(flag_traj_msg);
-                        is_send_ap_prepoint = true;
+                            nmpc_traj_pt[i].pos(0) = appre_pose(0) + delta_pos_x*count2;
+                            nmpc_traj_pt[i].pos(1) = appre_pose(1) + delta_pos_y*count2;
+                            nmpc_traj_pt[i].pos(2) = 1.0;
+                            nmpc_traj_pt[i].vel(0) = 0.0;
+                            nmpc_traj_pt[i].vel(1) = 0.0;
+                            nmpc_traj_pt[i].vel(2) = 0.0;
+                            cout << "nmpc_traj_pt[i].pos(0) is :" << nmpc_traj_pt[i].pos(0) <<  endl;
+                            cout << "nmpc_traj_pt[i].pos(1) is :" << nmpc_traj_pt[i].pos(1) <<  endl;
+                            cout << "nmpc_traj_pt[i].pos(2) is :" << nmpc_traj_pt[i].pos(2) <<  endl;
+                        }  
                     }
                     else
                     {
-                        PrintInfo(ap_print_count, 20, "Flying to Prepoint!!!");
+                        is_arrive_ap_prepoint = true;
                     }
-                    if (flag_state.touch_goal == true)
-                    {
-                        if (ap_prepoint_lock < 10)
-                        {
-                            ap_prepoint_lock++;
-                        }
-                        else
-                        {
-                            is_arrive_ap_prepoint = true;
-                            cout << "Arrive Prepoint!" << endl;
-                        }
-                    }
+
+                    // if (is_send_ap_prepoint == false)
+                    // {
+                    //     if (search_orient == 0)
+                    //     {
+                    //         search_orient = 1;
+                    //     }
+                    //     TypePoint ap_target;
+                    //     ap_target.id = Ego_traj_size + search_orient;
+                    //     //ap_target.id =1;
+                    //     ap_target.mode = 2;
+                    //     ap_target.is_map = 0;
+                    //     ap_target.x = ap_pose(0);
+                    //     ap_target.y = ap_pose(1);
+                    //     ap_target.z = 1.28;
+                    //     EGO_flag_aimpos(ap_target);
+                    //     //ROS_INFO("Flying to Apriltag Prepoint!");
+                    //     //ROS_INFO("Publishing point %d", Ego_traj_size+search_orient);
+                    //     //ROS_INFO("Flag %d: x: %f, y: %f, z: %f", Ego_traj_size+search_orient, ap_target.x, ap_target.y, ap_target.z);
+                    //     ego_flag_pub.publish(flag_traj_msg);
+                    //     is_send_ap_prepoint = true;
+                    // }
+                    // else
+                    // {
+                    //     PrintInfo(ap_print_count, 20, "Flying to Prepoint!!!");
+                    // }
+                    // if (flag_state.touch_goal == true)
+                    // {
+                    //     if (ap_prepoint_lock < 10)
+                    //     {
+                    //         ap_prepoint_lock++;
+                    //     }
+                    //     else
+                    //     {
+                    //         is_arrive_ap_prepoint = true;
+                    //         cout << "Arrive Prepoint!" << endl;
+                    //     }
+                    // }
                     }
                 if (is_found_ap == true && is_arrive_ap_prepoint == true) {
                     apland = true;
@@ -2455,12 +2335,12 @@ int main(int argc, char **argv)
                     {
                         nmpc_traj_pt[i].pos(0) = ap_pose(0);
                         nmpc_traj_pt[i].pos(1) = ap_pose(1) + i*delta_pos;
-                        nmpc_traj_pt[i].pos(2) = 1.28 - 0.005*ctl_land_count;
+                        nmpc_traj_pt[i].pos(2) = 1.0 - 0.005*ctl_land_count;
                         nmpc_traj_pt[i].vel(0) = 0.0;
                         nmpc_traj_pt[i].vel(1) = 0.0;
                         nmpc_traj_pt[i].vel(2) = 0.0;
                     }
-                    if (ctl_land_count < 256)
+                    if (ctl_land_count < 200)
                     {
                         ctl_land_count++;
                         cout << "Landing!!!   " << ctl_land_count << endl;
