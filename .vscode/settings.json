@@ -77,6 +77,16 @@
         "variant": "cpp",
         "rope": "cpp",
         "slist": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "forward_list": "cpp",
+        "any": "cpp",
+        "csetjmp": "cpp",
+        "codecvt": "cpp",
+        "cuchar": "cpp",
+        "filesystem": "cpp",
+        "future": "cpp",
+        "scoped_allocator": "cpp",
+        "charconv": "cpp",
+        "netfwd": "cpp"
     }
 }

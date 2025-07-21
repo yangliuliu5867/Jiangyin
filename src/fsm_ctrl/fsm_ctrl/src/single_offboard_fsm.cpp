@@ -2421,7 +2421,7 @@ int main(int argc, char **argv)
             target_arm.orientation.y = 0.0;
             target_arm.orientation.z = 0.0;
             target_arm.orientation.w = 1.0;
-            target_arm.thrust = 0.19;
+            target_arm.thrust = nmpc_hover_thrust - 0.01;
             local_attitude_pub.publish(target_arm);
         }
 

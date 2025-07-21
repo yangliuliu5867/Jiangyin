@@ -977,11 +977,12 @@ int main(int argc, char **argv)
             //std::printf(" g: %.4f %.4f %.4f\n", kf.get_x().grav(0), kf.get_x().grav(1), kf.get_x().grav(2));
 
             //drone mid360 equip      -16.7637度
-            theta = -atan(kf.get_x().grav(0)/ kf.get_x().grav(2))*180.0/PI;
-            // theta = -19.01;
+            // theta = -atan(kf.get_x().grav(0)/ kf.get_x().grav(2))*180.0/PI;
+            theta = - 20.00;  //+-?
             std::printf(" theta: %.4f \n", theta);
 
-            alpha = -atan(kf.get_x().grav(1)/ kf.get_x().grav(2))*180.0/PI;
+            alpha = 0.0000;
+            // alpha = -atan(kf.get_x().grav(1)/ kf.get_x().grav(2))*180.0/PI;
             std::printf(" alpha: %.4f \n", alpha);
             
             

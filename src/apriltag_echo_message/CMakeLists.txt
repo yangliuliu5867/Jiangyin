@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0.2)
 project(apriltag_echo_message)
 
-set(OpenCV_DIR /home/flag/opencv-4.2.0/build)
+# set(OpenCV_DIR /home/flag/opencv-4.2.0/build)
 # set(cv_bridge_DIR /usr/local/share/cv_bridge/cmake)
 
 find_package(catkin REQUIRED COMPONENTS
