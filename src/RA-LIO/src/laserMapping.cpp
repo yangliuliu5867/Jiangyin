@@ -978,7 +978,7 @@ int main(int argc, char **argv)
 
             //drone mid360 equip      -16.7637度
             // theta = -atan(kf.get_x().grav(0)/ kf.get_x().grav(2))*180.0/PI;
-            theta = - 20.00;  //+-?
+            theta = 20.00;  //+-?
             std::printf(" theta: %.4f \n", theta);
 
             alpha = 0.0000;

@@ -81,7 +81,7 @@ static int yaw_print_count = 0;
 
 static vector<TypePoint> Ego_traj;
 static int Ego_traj_count = 0;                     // 当前飞往点的标号
-static int Ego_traj_size = 1;
+static int Ego_traj_size = 8;
 static bool need_GeneTraj = true;                 // 是否需要修改轨迹
 
 //存放历史一段时间内的位姿
@@ -91,11 +91,11 @@ ros::Time ini_time;                                     //位姿初始时间
 static bool is_ini_time = false;                        //是否初始化位姿时间
 
 //tunnel
-static Eigen::Vector3d tunnel_pose1 = {3.09, -0.08, 1.3};
+static Eigen::Vector3d tunnel_pose1 = {16.53, -0.725, 1.2};
 static vector<Eigen::Vector3d> tunnel_filter1;
-static Eigen::Vector3d tunnel_pose2 = {25.0, 0.0, 1.6};
+static Eigen::Vector3d tunnel_pose2 = {22.37, 0.781, 1.2};
 static vector<Eigen::Vector3d> tunnel_filter2;
-static int tunnel_filter_size = 12;
+static int tunnel_filter_size = 9;
 
 //maze
 static Eigen::Vector3d maze_pose1 = {22.0, 11.5, 2.0};
@@ -140,10 +140,10 @@ static double doublering2_end_time = 0;
 static Eigen::Vector3d dynringpost_pose = {3.0, 0.0, 1.00};
 static Eigen::Vector3d appre_pose = {4.8, 0.8, 1.00};
 
-static Eigen::Vector3d double_pose1 = {7.57, 1.15, 1.65};
+static Eigen::Vector3d double_pose1 = {-3.6, 3.55, 1.25};
 static vector<Eigen::Vector3d> dou1_filter;
 static int dou1_filter_size = 5;
-static Eigen::Vector3d double_pose2 = {7.57, -0.101, 1.65};
+static Eigen::Vector3d double_pose2 = {-3.57, 5.15, 1.25};
 static vector<Eigen::Vector3d> dou2_filter;
 static int dou2_filter_size = 5;
 
@@ -756,12 +756,12 @@ void double_ring1_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
     Eigen::Vector3d prepose(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
     cout << "double1: [" << double_pose1(0) << ", " << double_pose1(1) << ", " << double_pose1(2) << "]" << endl;
     
-        if (JudgeDis(prepose, double_pose1, 2.0))
+        if (JudgeDis(prepose, double_pose1, 1.0))
         {
             Eigen::Vector3d filterpose;
             if (MedianFilter(dou1_filter, prepose, dou1_filter_size, filterpose))
             {
-                if (!JudgeDis(filterpose, double_pose1, 0.15))
+                if (!JudgeDis(filterpose, double_pose1, 0.10))
                 {
                     cout << "\033[32m" << "ring1 changed!" << endl;
                     cout << "duoblering1 changed!" << endl;
@@ -797,12 +797,12 @@ void double_ring2_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
     cout << "double2: [" << double_pose2(0) << ", " << double_pose2(1) << ", " << double_pose2(2) << "]" << endl;
     Eigen::Vector3d prepose(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
     
-        if (JudgeDis(prepose, double_pose2, 2.0))
+        if (JudgeDis(prepose, double_pose2, 1.0))
         {
             Eigen::Vector3d filterpose;
             if (MedianFilter(dou2_filter, prepose, dou2_filter_size, filterpose))
             {
-                if (!JudgeDis(filterpose, double_pose2, 0.15))
+                if (!JudgeDis(filterpose, double_pose2, 0.10))
                 {
                     cout << "\033[32m" << "doublering2 changed!" << endl;
                     cout << "doublering2 changed!" << endl;
@@ -832,13 +832,13 @@ void double_ring2_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)
 void tunnel_cb(const nav_msgs::Path::ConstPtr &msg)
 {
     Eigen::Vector3d prepose(msg->poses[0].pose.position.x, msg->poses[0].pose.position.y, msg->poses[0].pose.position.z);
-    cout << "tunnel: [" << tunnel_pose1(0) << ", " << tunnel_pose1(1) << ", " << tunnel_pose1(2) << "]" << endl;
-    if (JudgeDis(prepose, tunnel_pose1, 100.0))
+    cout << "tunnel1: [" << tunnel_pose1(0) << ", " << tunnel_pose1(1) << ", " << tunnel_pose1(2) << "]" << endl;
+    if (JudgeDis(prepose, tunnel_pose1, 1.0))
     {
         Eigen::Vector3d filterpose;
         if (MedianFilter(tunnel_filter1, prepose, tunnel_filter_size, filterpose))
         {
-            if (!JudgeDis(filterpose, tunnel_pose1, 0.05))
+            if (!JudgeDis(filterpose, tunnel_pose1, 0.10))
             {
                 cout << "\033[32m" << "tunnel changed!" << endl;
                 cout << "tunnel changed!" << endl;
@@ -850,7 +850,7 @@ void tunnel_cb(const nav_msgs::Path::ConstPtr &msg)
             }
             else
             {
-                cout << "No need to change tunnel!!!" << endl;
+                cout << "No need to change tunnel1!!!" << endl;
             }
         }
         else
@@ -863,36 +863,37 @@ void tunnel_cb(const nav_msgs::Path::ConstPtr &msg)
         cout << "Perception of tunnel is out of security range!" << endl;
     }
     
-    // prepose << msg->poses[1].pose.position.x, msg->poses[1].pose.position.y, msg->poses[1].pose.position.z;
-    // if (JudgeDis(prepose, tunnel_pose2, 1.0))
-    // {
-    //     Eigen::Vector3d filterpose;
-    //     if (MedianFilter(tunnel_filter2, prepose, tunnel_filter_size, filterpose))
-    //     {
-    //         if (!JudgeDis(filterpose, tunnel_pose2, 0.10))
-    //         {
-    //             cout << "\033[32m" << "tunnel changed!" << endl;
-    //             cout << "tunnel changed!" << endl;
-    //             cout << "tunnel changed!" << endl;
-    //             cout << "From: [" << tunnel_pose2(0) << ", " << tunnel_pose2(1) << ", " << tunnel_pose2(2) << "]" << endl;
-    //             cout << "To: [" << filterpose(0) << ", " << filterpose(1) << ", " << filterpose(2) << "]" << "\033[0m" << endl;
-    //             tunnel_pose2= filterpose;
-    //             need_GeneTraj = true;
-    //         }
-    //         else
-    //         {
-    //             cout << "No need to change tunnel!!!" << endl;
-    //         }
-    //     }
-    //     else
-    //     {
-    //         cout << "tunnel Filter is not full!" << endl;
-    //     }
-    // }
-    // else
-    // {
-    //     cout << "Perception of tunnel2 is out of security range!" << endl;
-    // }
+    prepose << msg->poses[1].pose.position.x, msg->poses[1].pose.position.y, msg->poses[1].pose.position.z;
+    cout << "tunnel2: [" << tunnel_pose2(0) << ", " << tunnel_pose2(1) << ", " << tunnel_pose2(2) << "]" << endl;
+    if (JudgeDis(prepose, tunnel_pose2, 1.0))
+    {
+        Eigen::Vector3d filterpose;
+        if (MedianFilter(tunnel_filter2, prepose, tunnel_filter_size, filterpose))
+        {
+            if (!JudgeDis(filterpose, tunnel_pose2, 0.10))
+            {
+                cout << "\033[32m" << "tunnel2 changed!" << endl;
+                cout << "tunnel changed!" << endl;
+                cout << "tunnel changed!" << endl;
+                cout << "From: [" << tunnel_pose2(0) << ", " << tunnel_pose2(1) << ", " << tunnel_pose2(2) << "]" << endl;
+                cout << "To: [" << filterpose(0) << ", " << filterpose(1) << ", " << filterpose(2) << "]" << "\033[0m" << endl;
+                tunnel_pose2= filterpose;
+                need_GeneTraj = true;
+            }
+            else
+            {
+                cout << "No need to change tunnel2!!!" << endl;
+            }
+        }
+        else
+        {
+            cout << "tunnel Filter is not full!" << endl;
+        }
+    }
+    else
+    {
+        cout << "Perception of tunnel2 is out of security range!" << endl;
+    }
 }
 
 void maze_cb(const nav_msgs::Path::ConstPtr &msg)
@@ -1102,27 +1103,41 @@ void EgoAddPoint(int _id, int _mode, int _is_map, double _x, double _y, double _
 void EgoGeneTraj()
 {
     Ego_traj.clear();
-    EgoAddPoint(0, 2, 0, dynringpost_pose(0), dynringpost_pose(1), 1.0, 0.0, 2);
-    EgoAddPoint(1, 2, 0, 2.0, 0.0, 1.3, 0.0, 2);
-    EgoAddPoint(2, 3, 0, tunnel_pose1(0)-0.5, tunnel_pose1(1), 1.3, 0.0, 0);
-    EgoAddPoint(3, 3, 0, tunnel_pose1(0)+0.5, tunnel_pose1(1), 1.3, 0.0, 7);
-    EgoAddPoint(4, 3, 0, 5.623,0.528 , 1.3, 0.0, 7);
-    EgoAddPoint(5, 3, 0, double_pose1(0)-0.8, double_pose1(1), 1.65, 0.0, 0);
-    EgoAddPoint(6, 3, 0, double_pose1(0)+0.8, double_pose1(1), 1.65, 0.0, 0);
-    EgoAddPoint(7, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.65, 0.0, 0);
-    EgoAddPoint(8, 3, 0, double_pose2(0)-0.8, double_pose2(1), 1.65, 0.0, 0);
-    EgoAddPoint(9, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.65, 0.0, 0);
-    EgoAddPoint(10, 2, 0, ring2_pose(0)-1,ring2_pose(1), ring2_pose(2), 0.0, 5);
-    EgoAddPoint(2, 3, 0, 10.9, -0.12, 1.2, 0.0, 5);
-    EgoAddPoint(3, 3, 0, 11.2, -1.1, 1.2, -3.13, 5);
-    EgoAddPoint(4, 3, 0, 9.66, -1.35, 1.4, -3.13, 5);
-    EgoAddPoint(5, 3, 0, 8.77, -1.35, 1.4, -3.13, 5);
-    EgoAddPoint(6, 3, 0, 7.9, -4.7, 1.3, -3.13, 5);
-    EgoAddPoint(7, 3, 0, double_pose1(0)+1, double_pose1(1), 1.65, -3.13, 5);
-    EgoAddPoint(8, 3, 0, double_pose1(0)-1, double_pose1(1), 1.65, -3.13, 5);
-    EgoAddPoint(9, 3, 0, double_pose2(0)-1, double_pose2(1), 1.65, -3.13, 5);
-    EgoAddPoint(10, 3, 0, double_pose2(0)+1, double_pose2(1), 1.65, -3.13, 5);
-    EgoAddPoint(11, 3, 0, 7.49, -5.48, 0.5, -3.13, 5);
+    EgoAddPoint(0, 2, 0, 1.0, 0.0, 1.25, 0.0, 7);
+    EgoAddPoint(1, 3, 0, 1.45, 0.98, 1.25, 1.57, 7);
+    EgoAddPoint(2, 3, 0, -1.07, 3.87, 1.25, 3.13, 7);
+    EgoAddPoint(3, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.25, 3.13, 0);
+    EgoAddPoint(4, 3, 0, double_pose2(0)-0.8, double_pose2(1), 1.25, 3.13, 0);
+    EgoAddPoint(5, 3, 0, double_pose1(0)-0.8, double_pose1(1), 1.25, 3.13, 0);
+    EgoAddPoint(6, 3, 0, double_pose1(0)+0.8, double_pose1(1), 1.25, 3.13, 0);
+    EgoAddPoint(7, 3, 0, double_pose1(0)+0.8, double_pose1(1)-1, 0.5, 3.13, 0);
+
+
+    //7.22lingchen
+    // EgoAddPoint(0, 2, 0, 1.0, 0.0, 1.2, 0.0, 7);
+    // EgoAddPoint(1, 3, 0, 7.45, 0.98, 1.2, 0.0, 0);
+    // EgoAddPoint(2, 3, 0, 12.07, 0.87, 1.2, 0.0, 2);
+    // EgoAddPoint(3, 3, 0, 13.49, -0.2, 1.2, 0.0, 2);
+    // EgoAddPoint(4, 3, 0, tunnel_pose1(0)-1.0, tunnel_pose1(1), 1.2, 0.0, 0);
+    // EgoAddPoint(5, 3, 0, tunnel_pose1(0)+1.0, tunnel_pose1(1), 1.2, 0.0, 0);
+    // EgoAddPoint(6, 3, 0, 19.430, -0.1, 1.2, 0.0, 0);
+    // EgoAddPoint(7, 3, 0, tunnel_pose2(0)-1.0, tunnel_pose2(1), 1.2, 0.0, 0);
+    // EgoAddPoint(8, 3, 0, tunnel_pose2(0)+1.0, tunnel_pose2(1), 1.2, 0.0, 0);
+    // EgoAddPoint(9, 3, 0, 24.55, 0.61, 0.5, 0.0, 0);
+    // // EgoAddPoint(8, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.65, 0.0, 0);
+    // // EgoAddPoint(9, 3, 0, double_pose2(0)-0.8, double_pose2(1), 1.65, 0.0, 0);
+    // // EgoAddPoint(9, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.65, 0.0, 0);
+    // // EgoAddPoint(10, 2, 0, ring2_pose(0)-1,ring2_pose(1), ring2_pose(2), 0.0, 5);
+    // // EgoAddPoint(2, 3, 0, 10.9, -0.12, 1.2, 0.0, 5);
+    // // EgoAddPoint(3, 3, 0, 11.2, -1.1, 1.2, -3.13, 5);
+    // // EgoAddPoint(4, 3, 0, 9.66, -1.35, 1.4, -3.13, 5);
+    // // EgoAddPoint(5, 3, 0, 8.77, -1.35, 1.4, -3.13, 5);
+    // // EgoAddPoint(6, 3, 0, 7.9, -4.7, 1.3, -3.13, 5);
+    // // EgoAddPoint(7, 3, 0, double_pose1(0)+1, double_pose1(1), 1.65, -3.13, 5);
+    // // EgoAddPoint(8, 3, 0, double_pose1(0)-1, double_pose1(1), 1.65, -3.13, 5);
+    // // EgoAddPoint(9, 3, 0, double_pose2(0)-1, double_pose2(1), 1.65, -3.13, 5);
+    // // EgoAddPoint(10, 3, 0, double_pose2(0)+1, double_pose2(1), 1.65, -3.13, 5);
+    // // EgoAddPoint(11, 3, 0, 7.49, -5.48, 0.5, -3.13, 5);
    
 
     // EgoAddPoint(0, 2, 0, 3, 0, 0.5, 0.0, 5);
@@ -2421,7 +2436,7 @@ int main(int argc, char **argv)
             target_arm.orientation.y = 0.0;
             target_arm.orientation.z = 0.0;
             target_arm.orientation.w = 1.0;
-            target_arm.thrust = nmpc_hover_thrust - 0.01;
+            target_arm.thrust = nmpc_hover_thrust - 0.03;
             local_attitude_pub.publish(target_arm);
         }
 

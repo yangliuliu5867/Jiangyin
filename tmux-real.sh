@@ -78,13 +78,13 @@ tmux send-keys "sleep 5s" C-m
 tmux send-keys "source devel/setup.bash" C-m
 # tmux send-keys "rosbag record /mavros/setpoint_raw/attitude /mavros/local_position/pose /mavros/local_position/velocity_local /mavros/imu/data /super/flag_cmd /super/flag_state /Odometry /nmpc_state /fsm_node/visualization/exp_sfc /fsm_node/visualization/frontend_path /fsm_node/visualization/exp_traj"
 # tmux send-keys "rosbag record /nmpc_posref /nmpc_posfdb"
-tmux send-keys "rosbag record /position_cmd_nmpc /Odometry /nmpc_state /mavros/setpoint_raw/attitude /mavros/local_position/pose /mavros/local_position/velocity_local /mavros/imu/data /tf_output /ap_global /ego_planner/flag_state /nmpc_posref"
+tmux send-keys "rosbag record /position_cmd_nmpc /Odometry /nmpc_state /mavros/setpoint_raw/attitude /mavros/local_position/pose /mavros/local_position/velocity_local /mavros/imu/data /tf_output /ap_global /ego_planner/flag_state /nmpc_posref /task2_pose"
 
 tmux select-pane -t flag:egov2.8
 tmux send-keys "sleep 5s" C-m 
 tmux send-keys "source devel/setup.bash" C-m 
 tmux send-keys "roslaunch apriltag_ros run_apriltag.launch" C-m
 # tmux send-keys "tmux kill-ser" 
-# tmux send-keys "rosbag record /mavros/local_position/pose /drone_0_planning/pos_cmd /ego_planner/flag_msg /mavros/setpoint_raw/attitude /nmpc_posref /apriltag_global /target_pose /cloud_registered /Odometry /ap_global"
+# tmux send-keys "rosbag record /mavros/local_position/pose /drone_0_planning/pos_cmd /ego_planner/flag_msg /mavros/setpoint_raw/attitude /nmpc_posref /apriltag_global /target_pose /cloud_registered /Odometry /ap_global "
 
 tmux attach-session -t flag 

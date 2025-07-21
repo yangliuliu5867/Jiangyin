@@ -45,9 +45,9 @@
         <param name = "nmpc_mQ_py" type = "double" value = "20" />
         <param name = "nmpc_mQ_px" type = "double" value = "20" />
         <param name = "nmpc_mQ_pz" type = "double" value = "50" />
-        <param name = "nmpc_mQ_vx" type = "double" value = "1" />
-        <param name = "nmpc_mQ_vy" type = "double" value = "1" />
-        <param name = "nmpc_mQ_vz" type = "double" value = "1" />
+        <param name = "nmpc_mQ_vx" type = "double" value = "0.5" />
+        <param name = "nmpc_mQ_vy" type = "double" value = "0.5" />
+        <param name = "nmpc_mQ_vz" type = "double" value = "0.5" />
         <param name = "nmpc_mQ_q1" type = "double" value = "1" />
         <param name = "nmpc_mQ_q2" type = "double" value = "1" />
         <param name = "nmpc_mQ_q3" type = "double" value = "1" />

@@ -350,11 +350,14 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
         // double wallWidthTrue = 2.45;
         // double wallHightTrue = 1.8;
 
-        double wallWidthTrue = 2.40;
+        // double wallWidthTrue = 2.40;
+        // double wallHightTrue = 2.0;
+        // double doorWidthPos_NearLeft = 0.35;
+        // double doorHightPos_NearFloor = 1.8;
+        double wallWidthTrue = 2.95;
         double wallHightTrue = 2.0;
-        double doorWidthPos_NearLeft = 0.35;
+        double doorWidthPos_NearLeft = 2.1;
         double doorHightPos_NearFloor = 1.8;
-
 
         // if((cloud_ymax-cloud_ymin)>0.95*wallWidthTrue && (cloud_xmax-cloud_xmin)<1.05*wallWidthTrue){
         //     std::cout<<"DoorPosEstLeft: "<<cloud_ymax-0.3<<std::endl;
@@ -384,7 +387,7 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
             circle_pose.pose.position.x = planeLeftPosX + doorWidthPos_NearLeft*sin(detPlane_angle);
-            circle_pose.pose.position.y = planeLeftPosY - doorWidthPos_NearLeft*cos(detPlane_angle)-0.32;
+            circle_pose.pose.position.y = planeLeftPosY - doorWidthPos_NearLeft*cos(detPlane_angle);
             circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
@@ -393,8 +396,8 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
             task2DoorPos.poses.push_back(circle_pose);
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX + 6.0*cos(detPlane_angle) + 2.37*sin(detPlane_angle);
-            circle_pose.pose.position.y = planeLeftPosY + 6.0*sin(detPlane_angle) - 2.37*cos(detPlane_angle);
+            circle_pose.pose.position.x = planeLeftPosX + 5.8*cos(detPlane_angle) + 0.45*sin(detPlane_angle);
+            circle_pose.pose.position.y = planeLeftPosY + 5.8*sin(detPlane_angle) - 0.45*cos(detPlane_angle)-0.1;
             circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
@@ -473,7 +476,7 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
 
         double wallWidthTrue = 4.95;
         double wallHightTrue = 1.3;
-        double doorWidthPos_NearLeft = 0.895;
+        double doorWidthPos_NearLeft = 0.9;
         double doorHightPos_NearFloor = 2.0;
 
         // if((cloud_ymax-cloud_ymin)>0.95*wallWidthTrue && (cloud_xmax-cloud_xmin)<1.05*wallWidthTrue){
@@ -498,11 +501,16 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
             // circle_pose.pose.orientation.z = 0;
             // circle_pose.pose.orientation.w = 1;
             // tagPospub.publish(circle_pose);
+            //290
+            //240
+            //280
+            //235
+
             nav_msgs::Path task3DoorPos;
             geometry_msgs::PoseStamped circle_pose;
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX + doorWidthPos_NearLeft*cos(detPlane_angle) - 0.1;
+            circle_pose.pose.position.x = planeLeftPosX + doorWidthPos_NearLeft*cos(detPlane_angle);
             circle_pose.pose.position.y = planeLeftPosY + doorWidthPos_NearLeft*sin(detPlane_angle);
             circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
@@ -512,9 +520,9 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
             task3DoorPos.poses.push_back(circle_pose);
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX - 2.35*sin(detPlane_angle) + (doorWidthPos_NearLeft+2.8)*cos(detPlane_angle) - 0.3;
-            circle_pose.pose.position.y = planeLeftPosY + 2.35*cos(detPlane_angle) + (doorWidthPos_NearLeft+2.8)*sin(detPlane_angle);
-            circle_pose.pose.position.z = doorHightPos_NearFloor+0.3;
+            circle_pose.pose.position.x = planeLeftPosX + 2.4*sin(detPlane_angle) + (doorWidthPos_NearLeft+2.90)*cos(detPlane_angle);
+            circle_pose.pose.position.y = planeLeftPosY + 2.4*cos(detPlane_angle) - (doorWidthPos_NearLeft+2.90)*sin(detPlane_angle);
+            circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
             circle_pose.pose.orientation.z = 0;
@@ -522,8 +530,8 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
             task3DoorPos.poses.push_back(circle_pose);
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX + 4.7*sin(detPlane_angle) + doorWidthPos_NearLeft*cos(detPlane_angle) + 0.15;
-            circle_pose.pose.position.y = planeLeftPosY + 4.7*cos(detPlane_angle) + doorWidthPos_NearLeft*sin(detPlane_angle);
+            circle_pose.pose.position.x = planeLeftPosX + 4.8*sin(detPlane_angle) + doorWidthPos_NearLeft*cos(detPlane_angle);
+            circle_pose.pose.position.y = planeLeftPosY + 4.8*cos(detPlane_angle) + doorWidthPos_NearLeft*sin(detPlane_angle);
             circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
@@ -784,12 +792,12 @@ Eigen::Vector4d ransacFitOnePlane(std::vector<Point>& points_input,pcl::PointClo
         // }
         //根据先验位置进行修改
         if(task == 2){
-            if(-plane[3]/plane[0]>(3)*1.2 ||-plane[3]/plane[0]<(3)*0.8 || abs(plane[1]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
+            if(-plane[3]/plane[0]>(16.5)*1.2 ||-plane[3]/plane[0]<(16.5)*0.8 || abs(plane[1]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
                 // std::cout<<"A: "<<-plane[0]/plane[3]<<std::endl;
                 continue;
             }
         }else if(task == 3){
-            if(-plane[3]/plane[1]>(10)*1.5 ||-plane[3]/plane[1]<(10)*0.5 || abs(plane[0]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
+            if(-plane[3]/plane[1]>(3.6)*1.5 ||-plane[3]/plane[1]<(3.6)*0.5 || abs(plane[0]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
                 // std::cout<<"A: "<<-plane[0]/plane[3]<<std::endl;
                 continue;
             }
@@ -1147,7 +1155,7 @@ void DoubleCircleFit(pcl::PointCloud<pcl::PointXYZ>::Ptr points){
               });
 
     if(valid_circles.size() > 1 ){
-        if (abs(valid_circles[0].second - valid_circles[1].second)> 0.5){
+        if (abs(valid_circles[0].second - valid_circles[1].second)> 1.2){
         for (int i = 0; i < valid_circles.size(); i++) {
             int idx = valid_circles[i].first;
             Eigen::VectorXf model = circle_models[idx];
@@ -1163,10 +1171,12 @@ void DoubleCircleFit(pcl::PointCloud<pcl::PointXYZ>::Ptr points){
             circle_pose.pose.orientation.z = 0;
             circle_pose.pose.orientation.w = 1;
             if (i == 0) { // x坐标最小的为右边圆环
-                Rcircle_pos_pub.publish(circle_pose);
+                // Rcircle_pos_pub.publish(circle_pose);
+                Lcircle_pos_pub.publish(circle_pose); 
             }
             else if (i == 1) { // y坐标第二小的为左边圆环
-                Lcircle_pos_pub.publish(circle_pose);               
+                // Lcircle_pos_pub.publish(circle_pose);               
+                Rcircle_pos_pub.publish(circle_pose);
             }
         }
         }
@@ -1214,8 +1224,8 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPreProcess(pcl::PointCloud<pcl::PointXY
         x_max = current_pos.x() + 5;
         y_min = current_pos.y() - 3;
         y_max = current_pos.y() + 3; 
-        z_min = 0.2;
-        z_max = 2.5;
+        z_min = 0.3;
+        z_max = 2.8;
     }else if(task == 3){
         x_min = current_pos.x() - 5;
         x_max = current_pos.x() + 5;
@@ -1245,12 +1255,12 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPreProcess(pcl::PointCloud<pcl::PointXY
         z_min = 1.8;
         z_max = 3.0;
     }else if(task == 7){
-        x_min = current_pos.x() + 0;
-        x_max = current_pos.x() + 5;
-        y_min = current_pos.y() - 1.5;
-        y_max = current_pos.y() + 1.5; 
-        z_min = 0.8;
-        z_max = 2.5;
+        x_min = current_pos.x() - 6;
+        x_max = current_pos.x() + 0;
+        y_min = current_pos.y() - 2.5;
+        y_max = current_pos.y() + 2.5; 
+        z_min = 0.3;
+        z_max = 2;
     }
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_input(new pcl::PointCloud<pcl::PointXYZ>);
@@ -1322,7 +1332,7 @@ void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg) {
         std::cout<<"MaxIteration: "<<MaxIteration<<std::endl;
         int GoalInliners = std::max(int(MinProbInliers * NumOfPoints), 4);
 
-        double threshold = 0.05;
+        double threshold = 0.2;
         
         // // 拟合平面
         // std::vector<Eigen::Vector4d> plane = ransacFitPlane(points,*cloud_filtered, MaxIteration, threshold,GoalInliners);
