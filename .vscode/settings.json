@@ -88,5 +88,6 @@
         "scoped_allocator": "cpp",
         "charconv": "cpp",
         "netfwd": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "/home/uav-qkyang/Jiangyin2025/src/SUPER/mars_uav_sim/mars_super_msgs"
 }

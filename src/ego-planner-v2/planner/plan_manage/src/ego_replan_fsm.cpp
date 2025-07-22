@@ -32,7 +32,7 @@ namespace ego_planner
 
     have_trigger_ = !flag_realworld_experiment_;
     // no_replan_thresh_ = 0.5 * emergency_time_ * planner_manager_->pp_.max_vel_;
-    no_replan_thresh_ = 0.5;
+    no_replan_thresh_ = 0.5 * planner_manager_->pp_.max_vel_ ;
     normal_speed_ = planner_manager_->pp_.max_vel_;
     ROS_INFO("NORMAL VEL %f", normal_speed_);
     ROS_INFO("SLOW VEL %f", slow_speed_);

@@ -354,9 +354,9 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
         // double wallHightTrue = 2.0;
         // double doorWidthPos_NearLeft = 0.35;
         // double doorHightPos_NearFloor = 1.8;
-        double wallWidthTrue = 2.95;
+        double wallWidthTrue = 3.15;
         double wallHightTrue = 2.0;
-        double doorWidthPos_NearLeft = 2.1;
+        double doorWidthPos_NearLeft =  1.05;
         double doorHightPos_NearFloor = 1.8;
 
         // if((cloud_ymax-cloud_ymin)>0.95*wallWidthTrue && (cloud_xmax-cloud_xmin)<1.05*wallWidthTrue){
@@ -366,46 +366,100 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
         
         if(detPlane_width>0.95*wallWidthTrue && detPlane_width <1.05*wallWidthTrue){
             
-            double planeLeftPosX = cloud.points[planeLeftIndex].x;
-            double planeLeftPosY = cloud.points[planeLeftIndex].y;
+            // double planeLeftPosX = cloud.points[planeLeftIndex].x;
+            // double planeLeftPosY = cloud.points[planeLeftIndex].y;
 
+            double planeLeftPosX = cloud.points[planeRightIndex].x;
+            double planeLeftPosY = cloud.points[planeRightIndex].y;
             std::cout<<"WallPos: "<<"X: "<<planeLeftPosX + doorWidthPos_NearLeft*sin(detPlane_angle)<<" Y: "<<planeLeftPosY - doorWidthPos_NearLeft*cos(detPlane_angle)<<std::endl;
-            // geometry_msgs::PoseStamped circle_pose;
+
+
+            nav_msgs::Path task2DoorPos;
+            geometry_msgs::PoseStamped circle_pose;
+
+            circle_pose.header.stamp = ros::Time::now();
+            circle_pose.header.frame_id = "world";
+            circle_pose.pose.position.x = planeLeftPosX - doorWidthPos_NearLeft*sin(detPlane_angle);
+            circle_pose.pose.position.y = planeLeftPosY + doorWidthPos_NearLeft*cos(detPlane_angle)+0.05;
+            circle_pose.pose.position.z = doorHightPos_NearFloor;
+            circle_pose.pose.orientation.x = 0;
+            circle_pose.pose.orientation.y = 0;
+            circle_pose.pose.orientation.z = 0;
+            circle_pose.pose.orientation.w = 1;
+            task2DoorPos.poses.push_back(circle_pose);
+            
+            //Lcircle_pos_pub.publish(circle_pose); 
+            
+            circle_pose.header.stamp = ros::Time::now();
+            circle_pose.header.frame_id = "world";
+            circle_pose.pose.position.x = planeLeftPosX + 5.8*cos(detPlane_angle) + 2.3*sin(detPlane_angle);
+            circle_pose.pose.position.y = planeLeftPosY + 5.8*sin(detPlane_angle) + 2.3*cos(detPlane_angle)+0.35;
+            circle_pose.pose.position.z = doorHightPos_NearFloor;
+            circle_pose.pose.orientation.x = 0;
+            circle_pose.pose.orientation.y = 0;
+            circle_pose.pose.orientation.z = 0;
+            circle_pose.pose.orientation.w = 1;
+            task2DoorPos.poses.push_back(circle_pose);
+            
+            //Rcircle_pos_pub.publish(circle_pose); 
+            
+            circle_pose.header.stamp = ros::Time::now();
+            circle_pose.header.frame_id = "world";
+            circle_pose.pose.position.x = planeLeftPosX + 2.5*cos(detPlane_angle) + 1.60*sin(detPlane_angle);
+            circle_pose.pose.position.y = planeLeftPosY + 2.5*sin(detPlane_angle) + 1.60*cos(detPlane_angle);
+            circle_pose.pose.position.z = doorHightPos_NearFloor;
+            circle_pose.pose.orientation.x = 0;
+            circle_pose.pose.orientation.y = 0;
+            circle_pose.pose.orientation.z = 0;
+            circle_pose.pose.orientation.w = 1;
+            task2DoorPos.poses.push_back(circle_pose);
+
+            //tagPospub.publish(circle_pose);
+
+            task2Pospub.publish(task2DoorPos);
+
             // circle_pose.header.stamp = ros::Time::now();
             // circle_pose.header.frame_id = "world";
             // circle_pose.pose.position.x = planeLeftPosX + doorWidthPos_NearLeft*sin(detPlane_angle);
-            // circle_pose.pose.position.y = planeLeftPosY - doorWidthPos_NearLeft*cos(detPlane_angle);
+            // circle_pose.pose.position.y = planeLeftPosY - doorWidthPos_NearLeft*cos(detPlane_angle)+0.1;
             // circle_pose.pose.position.z = doorHightPos_NearFloor;
             // circle_pose.pose.orientation.x = 0;
             // circle_pose.pose.orientation.y = 0;
             // circle_pose.pose.orientation.z = 0;
             // circle_pose.pose.orientation.w = 1;
+            // task2DoorPos.poses.push_back(circle_pose);
+            
+            // Lcircle_pos_pub.publish(circle_pose); 
+            
+            // circle_pose.header.stamp = ros::Time::now();
+            // circle_pose.header.frame_id = "world";
+            // circle_pose.pose.position.x = planeLeftPosX + 5.8*cos(detPlane_angle) + 0.45*sin(detPlane_angle);
+            // circle_pose.pose.position.y = planeLeftPosY + 5.8*sin(detPlane_angle) - 0.45*cos(detPlane_angle)-0.1;
+            // circle_pose.pose.position.z = doorHightPos_NearFloor;
+            // circle_pose.pose.orientation.x = 0;
+            // circle_pose.pose.orientation.y = 0;
+            // circle_pose.pose.orientation.z = 0;
+            // circle_pose.pose.orientation.w = 1;
+            // task2DoorPos.poses.push_back(circle_pose);
+            
+            // Rcircle_pos_pub.publish(circle_pose); 
+            
+            // circle_pose.header.stamp = ros::Time::now();
+            // circle_pose.header.frame_id = "world";
+            // circle_pose.pose.position.x = planeLeftPosX + 2.5*cos(detPlane_angle) + 1.40*sin(detPlane_angle);
+            // circle_pose.pose.position.y = planeLeftPosY + 2.5*sin(detPlane_angle) - 1.40*cos(detPlane_angle);
+            // circle_pose.pose.position.z = doorHightPos_NearFloor;
+            // circle_pose.pose.orientation.x = 0;
+            // circle_pose.pose.orientation.y = 0;
+            // circle_pose.pose.orientation.z = 0;
+            // circle_pose.pose.orientation.w = 1;
+            // task2DoorPos.poses.push_back(circle_pose);
+
             // tagPospub.publish(circle_pose);
 
-            nav_msgs::Path task2DoorPos;
-            geometry_msgs::PoseStamped circle_pose;
-            circle_pose.header.stamp = ros::Time::now();
-            circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX + doorWidthPos_NearLeft*sin(detPlane_angle);
-            circle_pose.pose.position.y = planeLeftPosY - doorWidthPos_NearLeft*cos(detPlane_angle);
-            circle_pose.pose.position.z = doorHightPos_NearFloor;
-            circle_pose.pose.orientation.x = 0;
-            circle_pose.pose.orientation.y = 0;
-            circle_pose.pose.orientation.z = 0;
-            circle_pose.pose.orientation.w = 1;
-            task2DoorPos.poses.push_back(circle_pose);
-            circle_pose.header.stamp = ros::Time::now();
-            circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX + 5.8*cos(detPlane_angle) + 0.45*sin(detPlane_angle);
-            circle_pose.pose.position.y = planeLeftPosY + 5.8*sin(detPlane_angle) - 0.45*cos(detPlane_angle)-0.1;
-            circle_pose.pose.position.z = doorHightPos_NearFloor;
-            circle_pose.pose.orientation.x = 0;
-            circle_pose.pose.orientation.y = 0;
-            circle_pose.pose.orientation.z = 0;
-            circle_pose.pose.orientation.w = 1;
-            task2DoorPos.poses.push_back(circle_pose);
+            // task2Pospub.publish(task2DoorPos);
+            
 
-            task2Pospub.publish(task2DoorPos);
          }//else if(detPlane_width>0.95*2.6 && detPlane_width <1.05*2.6){
             
         //     double planeLeftPosX = cloud.points[planeLeftIndex].x;
@@ -510,34 +564,42 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
             geometry_msgs::PoseStamped circle_pose;
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX + doorWidthPos_NearLeft*cos(detPlane_angle);
-            circle_pose.pose.position.y = planeLeftPosY + doorWidthPos_NearLeft*sin(detPlane_angle);
+            circle_pose.pose.position.x = planeLeftPosX + doorWidthPos_NearLeft*cos(detPlane_angle)+0.05;
+            circle_pose.pose.position.y = planeLeftPosY + doorWidthPos_NearLeft*sin(detPlane_angle)+0.25;
             circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
             circle_pose.pose.orientation.z = 0;
             circle_pose.pose.orientation.w = 1;
             task3DoorPos.poses.push_back(circle_pose);
+
+            //Lcircle_pos_pub.publish(circle_pose); 
+
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX + 2.4*sin(detPlane_angle) + (doorWidthPos_NearLeft+2.90)*cos(detPlane_angle);
-            circle_pose.pose.position.y = planeLeftPosY + 2.4*cos(detPlane_angle) - (doorWidthPos_NearLeft+2.90)*sin(detPlane_angle);
+            circle_pose.pose.position.x = planeLeftPosX - 2.4*sin(detPlane_angle) + (doorWidthPos_NearLeft+2.90)*cos(detPlane_angle)-0.22;
+            circle_pose.pose.position.y = planeLeftPosY + 2.4*cos(detPlane_angle) + (doorWidthPos_NearLeft+2.90)*sin(detPlane_angle)+0.5;
             circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
             circle_pose.pose.orientation.z = 0;
             circle_pose.pose.orientation.w = 1;
             task3DoorPos.poses.push_back(circle_pose);
+
+            //Rcircle_pos_pub.publish(circle_pose); 
+
             circle_pose.header.stamp = ros::Time::now();
             circle_pose.header.frame_id = "world";
-            circle_pose.pose.position.x = planeLeftPosX + 4.8*sin(detPlane_angle) + doorWidthPos_NearLeft*cos(detPlane_angle);
-            circle_pose.pose.position.y = planeLeftPosY + 4.8*cos(detPlane_angle) + doorWidthPos_NearLeft*sin(detPlane_angle);
+            circle_pose.pose.position.x = planeLeftPosX + 4.8*sin(detPlane_angle) + doorWidthPos_NearLeft*cos(detPlane_angle)+0.05;
+            circle_pose.pose.position.y = planeLeftPosY + 4.8*cos(detPlane_angle) + doorWidthPos_NearLeft*sin(detPlane_angle)+0.2;
             circle_pose.pose.position.z = doorHightPos_NearFloor;
             circle_pose.pose.orientation.x = 0;
             circle_pose.pose.orientation.y = 0;
             circle_pose.pose.orientation.z = 0;
             circle_pose.pose.orientation.w = 1;
             task3DoorPos.poses.push_back(circle_pose);
+            
+            //tagPospub.publish(circle_pose);
 
             task3Pospub.publish(task3DoorPos);
         }
@@ -797,7 +859,7 @@ Eigen::Vector4d ransacFitOnePlane(std::vector<Point>& points_input,pcl::PointClo
                 continue;
             }
         }else if(task == 3){
-            if(-plane[3]/plane[1]>(3.6)*1.5 ||-plane[3]/plane[1]<(3.6)*0.5 || abs(plane[0]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
+            if(-plane[3]/plane[1]>(19.1)*1.5 ||-plane[3]/plane[1]<(19.1)*0.5 || abs(plane[0]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
                 // std::cout<<"A: "<<-plane[0]/plane[3]<<std::endl;
                 continue;
             }
@@ -1255,7 +1317,7 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPreProcess(pcl::PointCloud<pcl::PointXY
         z_min = 1.8;
         z_max = 3.0;
     }else if(task == 7){
-        x_min = current_pos.x() - 6;
+        x_min = current_pos.x() - 5;
         x_max = current_pos.x() + 0;
         y_min = current_pos.y() - 2.5;
         y_max = current_pos.y() + 2.5; 
