@@ -81,7 +81,7 @@ static int yaw_print_count = 0;
 
 static vector<TypePoint> Ego_traj;
 static int Ego_traj_count = 0;                     // 当前飞往点的标号
-static int Ego_traj_size = 34;
+static int Ego_traj_size = 46;
 static bool need_GeneTraj = true;                 // 是否需要修改轨迹
 
 //存放历史一段时间内的位姿
@@ -1037,76 +1037,80 @@ void apriltag_cb(const geometry_msgs::PoseStamped::ConstPtr &msg)    // 0705
     //     ROS_ERROR("Z is too low!!! Return!!!");
     //     return;
     // }
-    ap_start_time = (msg->header.stamp-ini_time).toSec();
-    cout << "\033[33m" << "ap callback!" << endl;
-    cout << "ap Delta Time: " << ap_start_time - ap_end_time << "\033[0m" << endl;
-    ap_end_time = ap_start_time;                //Monitor the time between two frame
-
-    Eigen::Vector4d prepose(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, 1);
-    cout << "prepose: " << prepose.transpose() << endl;
-    double min_delta_time = 100000;
-    int num = 0;
-    for (int i=0;i<fsm_pos.size();i++)
+    if(ctl_land_count<230)
     {
-        double delta_time = fabs(ap_start_time - fsm_pos[i][0]);
-        if (delta_time < min_delta_time)
-        {
-            min_delta_time = delta_time;
-            num = i;
-        }
-    }
-    Eigen::Matrix4d m;
-    m << -1, 0, 0, 0,
-        0, -1, 0, 0,
-        0, 0, 1, 0,
-        0, 0, 0, 1;
-    prepose = m * prepose;
-    Eigen::Vector4d LTGpose = LocalToGlobal(fsm_pos[num][1], fsm_pos[num][2], fsm_pos[num][3], 
-                                            fsm_pos[num][4], fsm_pos[num][5], fsm_pos[num][6]) * prepose;
-    Eigen::Vector3d LTGpose03 = LTGpose.head(3);
+        ap_start_time = (msg->header.stamp-ini_time).toSec();
+        cout << "\033[33m" << "ap callback!" << endl;
+        cout << "ap Delta Time: " << ap_start_time - ap_end_time << "\033[0m" << endl;
+        ap_end_time = ap_start_time;                //Monitor the time between two frame
 
-    ap_gl_pos = LTGpose03;
-    // cout << "LTGpose03: [" << LTGpose03(0) << ", " << LTGpose03(1) << ", " << LTGpose03(2) << "]" << endl;
-
-    if (JudgeDis(LTGpose03, ap_pose, 2.0))
-    {
-        Eigen::Vector3d filterpose;
-        if (MedianFilter(ap_filter, LTGpose03, ap_filter_size, filterpose))
+        Eigen::Vector4d prepose(msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, 1);
+        cout << "prepose: " << prepose.transpose() << endl;
+        double min_delta_time = 100000;
+        int num = 0;
+        for (int i=0;i<fsm_pos.size();i++)
         {
-            if (is_found_ap == false)
+            double delta_time = fabs(ap_start_time - fsm_pos[i][0]);
+            if (delta_time < min_delta_time)
             {
-                is_found_ap = true;
-                ROS_WARN("Apriltag has been found!!!");
-                ROS_WARN("Apriltag has been found!!!");
-                ROS_WARN("Apriltag has been found!!!");
+                min_delta_time = delta_time;
+                num = i;
             }
-            ap_pose = filterpose;
-            april_pos.header.stamp = ros::Time::now();
-            april_pos.header.frame_id = "map"; // 根据实际情况修改坐标系
+        }
+        Eigen::Matrix4d m;
+        m << -1, 0, 0, 0,
+            0, -1, 0, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1;
+        prepose = m * prepose;
+        Eigen::Vector4d LTGpose = LocalToGlobal(fsm_pos[num][1], fsm_pos[num][2], fsm_pos[num][3], 
+                                                fsm_pos[num][4], fsm_pos[num][5], fsm_pos[num][6]) * prepose;
+        Eigen::Vector3d LTGpose03 = LTGpose.head(3);
 
-            // 设置位置信息
-            april_pos.pose.position.x = ap_pose(0);
-            april_pos.pose.position.y = ap_pose(1);
-            april_pos.pose.position.z = ap_pose(2);
+        ap_gl_pos = LTGpose03;
+        // cout << "LTGpose03: [" << LTGpose03(0) << ", " << LTGpose03(1) << ", " << LTGpose03(2) << "]" << endl;
 
-            // 设置姿态为单位四元数（如果不需要姿态信息）
-            april_pos.pose.orientation.x = 0.0;
-            april_pos.pose.orientation.y = 0.0;
-            april_pos.pose.orientation.z = 0.0;
-            april_pos.pose.orientation.w = 1.0;
-            
-            cout << "LTGpose03: [" << ap_pose(0) << ", " << ap_pose(1) << ", " << ap_pose(2) << "]" << endl;
+        if (JudgeDis(LTGpose03, ap_pose, 2.0))
+        {
+            Eigen::Vector3d filterpose;
+            if (MedianFilter(ap_filter, LTGpose03, ap_filter_size, filterpose))
+            {
+                if (is_found_ap == false)
+                {
+                    is_found_ap = true;
+                    ROS_WARN("Apriltag has been found!!!");
+                    ROS_WARN("Apriltag has been found!!!");
+                    ROS_WARN("Apriltag has been found!!!");
+                }
+                ap_pose = filterpose;
+                april_pos.header.stamp = ros::Time::now();
+                april_pos.header.frame_id = "map"; // 根据实际情况修改坐标系
+
+                // 设置位置信息
+                april_pos.pose.position.x = ap_pose(0);
+                april_pos.pose.position.y = ap_pose(1);
+                april_pos.pose.position.z = ap_pose(2);
+
+                // 设置姿态为单位四元数（如果不需要姿态信息）
+                april_pos.pose.orientation.x = 0.0;
+                april_pos.pose.orientation.y = 0.0;
+                april_pos.pose.orientation.z = 0.0;
+                april_pos.pose.orientation.w = 1.0;
+
+                cout << "LTGpose03: [" << ap_pose(0) << ", " << ap_pose(1) << ", " << ap_pose(2) << "]" << endl;
+            }
+            else
+            {
+                cout << "Apriltag filter is not full!" << endl;
+            }
         }
         else
         {
-            cout << "Apriltag filter is not full!" << endl;
+            cout << "Apriltag is out of security range!" << endl;
+            cout << "[" << LTGpose03.x() << ", " << LTGpose03.y() << ", " << LTGpose03.z() << "]" << endl;
         }
     }
-    else
-    {
-        cout << "Apriltag is out of security range!" << endl;
-        cout << "[" << LTGpose03.x() << ", " << LTGpose03.y() << ", " << LTGpose03.z() << "]" << endl;
-    }
+    
 }
 
 // void YawSmooth(double &yaw_now, double yaw_des)
@@ -1186,6 +1190,18 @@ void EgoGeneTraj()
     EgoAddPoint(31, 2, 0, maze_pose3(0), maze_pose3(1)+0.8, 2.0, 1.57, 0);
     EgoAddPoint(32, 3, 0, 19.00, 18.00, 1.8, 1.57, 0);
     EgoAddPoint(33, 3, 0, 14.80, 15.42, 1.0, 3.13, 0);
+    EgoAddPoint(34, 2, 0, 2.479, 0.0, 1.0, 0.0, 7);
+    EgoAddPoint(34, 3, 0, 3.26, 4.0, 1.65, 1.57, 7);
+    EgoAddPoint(36, 3, 0, 1.12, 4.37, 1.65, 3.13, 7);
+    EgoAddPoint(37, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.65, 3.13, 0);
+    EgoAddPoint(38, 3, 0, double_pose2(0), double_pose2(1), 1.65, 3.13, 0);
+    EgoAddPoint(39, 3, 0, double_pose2(0)-0.8, double_pose2(1), 1.65, 3.13, 0);
+    EgoAddPoint(40, 3, 0, double_pose1(0)-0.8, double_pose1(1), 1.65, 3.13, 0);
+    EgoAddPoint(41, 3, 0, double_pose1(0), double_pose1(1), 1.65, 3.13, 0);
+    EgoAddPoint(42, 3, 0, double_pose1(0)+1.8, double_pose1(1), 1.65, 3.13, 0);
+    EgoAddPoint(43, 3, 0, double_pose1(0)+1.8, double_pose1(1)-1, 1.65, 3.13, 0);
+    EgoAddPoint(44, 3, 0, -4.3, 2.12, 1.65, 3.13, 5);
+    EgoAddPoint(45, 3, 0, ring2_pose(0)+1,ring2_pose(1), 1.65, 3.13, 5);
     
     // EgoAddPoint(8, 3, 0, double_pose2(0)+0.8, double_pose2(1), 1.65, 0.0, 0);
     // EgoAddPoint(9, 3, 0, double_pose2(0)-0.8, double_pose2(1), 1.65, 0.0, 0);
@@ -2191,49 +2207,52 @@ int main(int argc, char **argv)
                     Ego_traj_count = flag_state.now_id;
                 }
             }
+            dynringpost_pose(0)=ring2_pose(0)-1;
+            dynringpost_pose(1)=ring2_pose(1);
+            
         
             if( task1 == 6 ){
               
-                // if (is_arrive_ring2 == false && is_crossed_ring2 == false)
-                // {
-                //     double delta_pos_y = 0.6 * Clamp_Single(ring2_pose(1) - pos_fcu[1], 0.1);
-                //     for (int i=0;i<6;i++)
-                //     {
-                //         nmpc_traj_pt[i].pos(0) = ring2_pose(0) - 1 + 0.01*ring2_approach_count;    //
-                //         nmpc_traj_pt[i].pos(1) = ring2_pose(1) + i*delta_pos_y;
-                //         nmpc_traj_pt[i].pos(2) = ring2_pose(2);
-                //         nmpc_traj_pt[i].vel(0) = 0.0;
-                //         nmpc_traj_pt[i].vel(1) = 0.0;
-                //         nmpc_traj_pt[i].vel(2) = 0.0;
-                //     }
-                //     cout << "Flying to Ring2!  [Delta_x, Delta_y]: [" << ring2_pose(0)-pos_fcu[0] << ", " << ring2_pose(1)-pos_fcu[1] << "]" << endl;
-                //     ring2_approach_count++;
-                //     if (ring2_approach_count == 100)
-                //     {
-                //         is_arrive_ring2 = true;
-                //     }
-                // }
-                // else if (is_arrive_ring2 == true && is_crossed_ring2 == false)
-                // {
-                //     for (int i=0;i<6;i++)
-                //     {
-                //         nmpc_traj_pt[i].pos(0) = ring2_pose(0) + 0.01*ring2_cross_count;
-                //         nmpc_traj_pt[i].pos(1) = ring2_pose(1);
-                //         nmpc_traj_pt[i].pos(2) = ring2_pose(2);
-                //         nmpc_traj_pt[i].vel(0) = 0.0;
-                //         nmpc_traj_pt[i].vel(1) = 0.0;
-                //         nmpc_traj_pt[i].vel(2) = 0.0;
-                //     }
-                //     cout << "Crossing Ring2!  " << ring2_cross_count << endl;
-                //     ring2_cross_count++;
-                //     if (ring2_cross_count == 100)
-                //     {
-                //         is_crossed_ring2 = true;
-                //     }
-                // }
-                // else if (is_arrive_ring2 == true && is_crossed_ring2 == true)
-                // if (is_arrive_ring2 == true && is_crossed_ring2 == true)
-                // {
+                if (is_arrive_ring2 == false && is_crossed_ring2 == false)
+                {
+                    double delta_pos_y = 0.4 * Clamp_Single(ring2_pose(1) - pos_fcu[1], 0.1);
+                    for (int i=0;i<6;i++)
+                    {
+                        nmpc_traj_pt[i].pos(0) = ring2_pose(0) + 1 - 0.01*ring2_approach_count;    //
+                        nmpc_traj_pt[i].pos(1) = ring2_pose(1) + i*delta_pos_y/3;
+                        nmpc_traj_pt[i].pos(2) = 1.65;
+                        nmpc_traj_pt[i].vel(0) = 0.0;
+                        nmpc_traj_pt[i].vel(1) = 0.0;
+                        nmpc_traj_pt[i].vel(2) = 0.0;
+                    }
+                    cout << "Flying to Ring2!  [Delta_x, Delta_y]: [" << ring2_pose(0)-pos_fcu[0] << ", " << ring2_pose(1)-pos_fcu[1] << "]" << endl;
+                    ring2_approach_count++;
+                    if (ring2_approach_count == 100)
+                    {
+                        is_arrive_ring2 = true;
+                    }
+                }
+                else if (is_arrive_ring2 == true && is_crossed_ring2 == false)
+                {
+                    for (int i=0;i<6;i++)
+                    {
+                        nmpc_traj_pt[i].pos(0) = ring2_pose(0) - 0.01*ring2_cross_count;
+                        nmpc_traj_pt[i].pos(1) = ring2_pose(1);
+                        nmpc_traj_pt[i].pos(2) = 1.65;
+                        nmpc_traj_pt[i].vel(0) = 0.0;
+                        nmpc_traj_pt[i].vel(1) = 0.0;
+                        nmpc_traj_pt[i].vel(2) = 0.0;
+                    }
+                    cout << "Crossing Ring2!  " << ring2_cross_count << endl;
+                    ring2_cross_count++;
+                    if (ring2_cross_count == 100)
+                    {
+                        is_crossed_ring2 = true;
+                    }
+                }
+                else if (is_arrive_ring2 == true && is_crossed_ring2 == true)
+                if (is_arrive_ring2 == true && is_crossed_ring2 == true)
+                {
                     
                     if (count1<150)
                     {   
@@ -2246,7 +2265,7 @@ int main(int argc, char **argv)
                         {
                             nmpc_traj_pt[i].pos(0) = dynringpost_pose(0) + delta_pos_x*count1;
                             nmpc_traj_pt[i].pos(1) = dynringpost_pose(1) + delta_pos_y*count1;
-                            nmpc_traj_pt[i].pos(2) = 1.0;
+                            nmpc_traj_pt[i].pos(2) = 1.65;
                             nmpc_traj_pt[i].vel(0) = 0.0;
                             nmpc_traj_pt[i].vel(1) = 0.0;
                             nmpc_traj_pt[i].vel(2) = 0.0;
@@ -2300,7 +2319,7 @@ int main(int argc, char **argv)
                     //         cout << "Arrive Ring2 Postpoint!" << endl;
                     //     }
                     // }
-                // }
+                }
             }
 
             if(is_arrive_r2_postpoint == true){
@@ -2353,7 +2372,7 @@ int main(int argc, char **argv)
                         {
                             nmpc_traj_pt[i].pos(0) = appre_pose(0) + delta_pos_x*count2;
                             nmpc_traj_pt[i].pos(1) = appre_pose(1) + delta_pos_y*count2;
-                            nmpc_traj_pt[i].pos(2) = 1.0;
+                            nmpc_traj_pt[i].pos(2) = 1.65;
                             nmpc_traj_pt[i].vel(0) = 0.0;
                             nmpc_traj_pt[i].vel(1) = 0.0;
                             nmpc_traj_pt[i].vel(2) = 0.0;
@@ -2407,17 +2426,17 @@ int main(int argc, char **argv)
                     }
                 if (is_found_ap == true && is_arrive_ap_prepoint == true) {
                     apland = true;
-                    double delta_pos = 0.6 * Clamp_Single(ap_pose(1) - pos_fcu[1], 0.1);
+                    double delta_pos = 0.4 * Clamp_Single(ap_pose(1) - pos_fcu[1], 0.1);
                     for (int i=0;i<6;i++)
                     {
                         nmpc_traj_pt[i].pos(0) = ap_pose(0);
-                        nmpc_traj_pt[i].pos(1) = ap_pose(1) + i*delta_pos;
-                        nmpc_traj_pt[i].pos(2) = 1.0 - 0.005*ctl_land_count;
+                        nmpc_traj_pt[i].pos(1) = ap_pose(1) + i*delta_pos/3;
+                        nmpc_traj_pt[i].pos(2) = 1.65 - 0.005*ctl_land_count;
                         nmpc_traj_pt[i].vel(0) = 0.0;
                         nmpc_traj_pt[i].vel(1) = 0.0;
                         nmpc_traj_pt[i].vel(2) = 0.0;
                     }
-                    if (ctl_land_count < 200)
+                    if (ctl_land_count < 330)
                     {
                         ctl_land_count++;
                         cout << "Landing!!!   " << ctl_land_count << endl;
@@ -2440,11 +2459,15 @@ int main(int argc, char **argv)
                 }
             }
 
+            quat_yaw = EulerToQuat(0, 0, YawSmooth(yaw_now, Ego_traj[flag_state.now_id].yaw));
+            ROS_INFO("yaw is %f", yaw_now);
+            
             geometry_msgs::PoseStamped nmpc_posfdb_msg;
             nmpc_posfdb_msg.pose.position.x = pos_fcu(0);
             nmpc_posfdb_msg.pose.position.y = pos_fcu(1);
             nmpc_posfdb_msg.pose.position.z = pos_fcu(2);
             nmpc_posfdb_pub.publish(nmpc_posfdb_msg);
+            std::cout<<"position[0]: "<<pos_fcu(0)<<std::endl;
 
             geometry_msgs::PoseStamped nmpc_posref_msg;
             nmpc_posref_msg.pose.position.x = nmpc_traj_pt[0].pos(0);
@@ -2481,7 +2504,7 @@ int main(int argc, char **argv)
                 msg.body_rate.y = younger_ctrl.get_control_command()(2);
                 msg.body_rate.z = younger_ctrl.get_control_command()(3);
 
-                //std::cout<<"thrust is "<<younger_ctrl.get_control_command()(0)<<std::endl;
+                std::cout<<"thrust is "<<younger_ctrl.get_control_command()(0)<<std::endl;
                 local_attitude_pub.publish(msg);
             }
                 

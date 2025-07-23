@@ -458,9 +458,7 @@ void estDoorPos(pcl::PointCloud<pcl::PointXYZ> cloud_in,int task){
             // tagPospub.publish(circle_pose);
 
             // task2Pospub.publish(task2DoorPos);
-            
-
-         }//else if(detPlane_width>0.95*2.6 && detPlane_width <1.05*2.6){
+            }//else if(detPlane_width>0.95*2.6 && detPlane_width <1.05*2.6){
             
         //     double planeLeftPosX = cloud.points[planeLeftIndex].x;
         //     double planeLeftPosY = cloud.points[planeLeftIndex].y;
@@ -843,15 +841,6 @@ Eigen::Vector4d ransacFitOnePlane(std::vector<Point>& points_input,pcl::PointClo
         //     // std::cout<<"A: "<<-plane[0]/plane[3]<<std::endl;
         //     continue;
         // }
-        // //根据先验位置进行修改
-        // if(-plane[1]/plane[3]<1.0/(-0.7)*1.5 ||-plane[1]/plane[3]>1.0/(-0.7)*0.5 || abs(plane[0]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
-        //     // std::cout<<"A: "<<-plane[0]/plane[3]<<std::endl;
-        //     continue;
-        // }
-        // if(-plane[3]/plane[1]<(-0.7)*1.5 ||-plane[3]/plane[1]>(-0.7)*0.5 || abs(plane[0]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
-        //     // std::cout<<"A: "<<-plane[0]/plane[3]<<std::endl;
-        //     continue;
-        // }
         //根据先验位置进行修改
         if(task == 2){
             if(-plane[3]/plane[0]>(16.5)*1.2 ||-plane[3]/plane[0]<(16.5)*0.8 || abs(plane[1]/plane[3])>0.1 || abs(plane[2]/plane[3])>0.1){
@@ -1200,7 +1189,7 @@ void DoubleCircleFit(pcl::PointCloud<pcl::PointXYZ>::Ptr points){
                         ++plane_inliers;
                     }
                 }
-                if (plane_inliers / circle_clouds[i]->size() > 1.5) {
+                if (plane_inliers / circle_clouds[i]->size() > 2.5) {
                     continue; // 跳过不满足条件的圆环
                 }
             }
@@ -1217,7 +1206,7 @@ void DoubleCircleFit(pcl::PointCloud<pcl::PointXYZ>::Ptr points){
               });
 
     if(valid_circles.size() > 1 ){
-        if (abs(valid_circles[0].second - valid_circles[1].second)> 1.2){
+        if (abs(valid_circles[0].second - valid_circles[1].second)> 1){
         for (int i = 0; i < valid_circles.size(); i++) {
             int idx = valid_circles[i].first;
             Eigen::VectorXf model = circle_models[idx];
@@ -1233,11 +1222,9 @@ void DoubleCircleFit(pcl::PointCloud<pcl::PointXYZ>::Ptr points){
             circle_pose.pose.orientation.z = 0;
             circle_pose.pose.orientation.w = 1;
             if (i == 0) { // x坐标最小的为右边圆环
-                // Rcircle_pos_pub.publish(circle_pose);
                 Lcircle_pos_pub.publish(circle_pose); 
             }
-            else if (i == 1) { // y坐标第二小的为左边圆环
-                // Lcircle_pos_pub.publish(circle_pose);               
+            else if (i == 1) { // y坐标第二小的为左边圆环             
                 Rcircle_pos_pub.publish(circle_pose);
             }
         }
@@ -1303,10 +1290,10 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPreProcess(pcl::PointCloud<pcl::PointXY
         z_min = 0.8;
         z_max = 2.5;
     }else if(task == 5){
-        x_min = current_pos.x() + 0;
-        x_max = current_pos.x() + 5;
-        y_min = current_pos.y() - 1.4;
-        y_max = current_pos.y() + 1.4; 
+        x_min = current_pos.x() - 5;
+        x_max = current_pos.x() + 0;
+        y_min = current_pos.y() - 2;
+        y_max = current_pos.y() + 2; 
         z_min = 0.8;
         z_max = 3.0;
     }else if(task == 6){
@@ -1319,10 +1306,10 @@ pcl::PointCloud<pcl::PointXYZ>::Ptr cloudPreProcess(pcl::PointCloud<pcl::PointXY
     }else if(task == 7){
         x_min = current_pos.x() - 5;
         x_max = current_pos.x() + 0;
-        y_min = current_pos.y() - 2.5;
-        y_max = current_pos.y() + 2.5; 
-        z_min = 0.3;
-        z_max = 2;
+        y_min = current_pos.y() - 2;
+        y_max = current_pos.y() + 2; 
+        z_min = 0.8;
+        z_max = 3;
     }
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_input(new pcl::PointCloud<pcl::PointXYZ>);
@@ -1439,7 +1426,6 @@ void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud_msg) {
     }else if(currentTask == 7){
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered = cloudPreProcess(points_pcl,currentTask);
         DoubleCircleFit(cloud_filtered);
-
     }
     auto frame_end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> frame_duration = frame_end_time - frame_start_time ;

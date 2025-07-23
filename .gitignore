@@ -18,3 +18,4 @@
 /src/fsm_ctrl/fsm_ctrl/include/fsm_ctrl/NMPC_test.hpp
 /src/fsm_ctrl/fsm_ctrl/launch/single.launch
 src/fsm_ctrl/fsm_ctrl/launch/single.launch
+src/RA-LIO/src/laserMapping.cpp
