@@ -1,3 +1,12 @@
+/*
+ * @Author: yuzhe-yang chn.yuzhe.yang@gmail.com
+ * @LastEditors: yuzhe-yang chn.yuzhe.yang@gmail.com
+ * @LastEditTime: 2026-02-04 19
+ * @FilePath: /src/fsm_ctrl/fsm_ctrl/include/fsm_ctrl/single_offboard_fsm.hpp
+ * @Description: 
+ * 
+ * Copyright (c) 2026 by yuzhe-yang, All Rights Reserved. 
+ */
 #ifndef _SINGLE_OFFBOARD_FSM_HPP_
 #define _SINGLE_OFFBOARD_FSM_HPP_
 
@@ -38,19 +47,14 @@
 #include "std_msgs/Int64.h"
 #include <mavros_msgs/AttitudeTarget.h>
 #include <fsm_ctrl/dfbc.hpp>
-#include <fsm_ctrl/NMPC_test.hpp>
-#include <fsm_ctrl/NMPC_Controller.hpp>
-#include <quadrotor_msgs/PositionCommand.h>
 #include <visualization_msgs/Marker.h>
 // SYX FSM TEST
-#include <traj_utils/Flag.h>
-#include <traj_utils/FlagState.h>
-#include <fsm_ctrl/ctrl_math.hpp>
-#include <super_msgs/PositionCommand.h>
-#include <super_msgs/Flag.h>
-#include <fsm_ctrl/nmpc_state.h>
+// #include <traj_utils/Flag.h>
+// #include <traj_utils/FlagState.h>
+#include <ctrl_math/ctrl_math.hpp>
 // SYX FSM TEST DONE
 #include <nav_msgs/Path.h>
+
 
 
 

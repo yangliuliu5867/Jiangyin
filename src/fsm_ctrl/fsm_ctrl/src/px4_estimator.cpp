@@ -192,7 +192,7 @@ int main(int argc, char **argv)
     ros::Publisher vision_pub = nh.advertise<geometry_msgs::PoseStamped>("/mavros/vision_pose/pose", 1);
     
     /* subscriber */
-    ros::Subscriber mocap_sub = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/drone0/pose", 1, Mocap_Callback);
+    ros::Subscriber mocap_sub = nh.subscribe<geometry_msgs::PoseStamped>("/vrpn_client_node/yyx/pose", 1, Mocap_Callback);
     ros::Subscriber lidar_sub = nh.subscribe<nav_msgs::Odometry>("/Odometry", 1, Lidar_Callback);    
     ros::Subscriber camera_sub = nh.subscribe<nav_msgs::Odometry>("camera_odom", 1, Camera_Callback);
     ros::Subscriber ranger_sub = nh.subscribe<sensor_msgs::Range>("/tfmini", 1, Ranger_Callback);

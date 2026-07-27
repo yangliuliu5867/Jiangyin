@@ -89,6 +89,9 @@
         "shared_mutex": "cpp",
         "codecvt": "cpp",
         "scoped_allocator": "cpp",
-        "any": "cpp"
+        "any": "cpp",
+        "filesystem": "cpp",
+        "charconv": "cpp",
+        "netfwd": "cpp"
     }
 }

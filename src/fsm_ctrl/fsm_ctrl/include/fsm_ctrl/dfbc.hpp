@@ -9,7 +9,7 @@
 #include <eigen3/Eigen/Eigen>
 #include <geometry_msgs/TwistStamped.h>
 #include <mavros_msgs/AttitudeTarget.h>
-#include <fsm_ctrl/ctrl_math.hpp>
+#include <ctrl_math/ctrl_math.hpp>
 
 
 

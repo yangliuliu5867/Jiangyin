@@ -18,7 +18,7 @@
 #include <ros/ros.h>
 #include <eigen3/Eigen/Eigen>
 #include <geometry_msgs/PoseStamped.h>
-#include <fsm_ctrl/ctrl_math.hpp>
+#include <ctrl_math/ctrl_math.hpp>
 
 
 
