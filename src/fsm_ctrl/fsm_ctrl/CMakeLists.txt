@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   ctrl_math
 )
 find_package(Eigen3 REQUIRED)
+find_package(casadi CONFIG REQUIRED)
 
 generate_messages(
   DEPENDENCIES
@@ -34,9 +35,11 @@ include_directories(
 
 add_executable(single_offboard_fsm
   src/single_offboard_fsm.cpp
+  src/NMPC_Controller.cpp
 )
 target_link_libraries(single_offboard_fsm
   ${catkin_LIBRARIES}
+  casadi::casadi
 )
 
 add_executable(px4_estimator

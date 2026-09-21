@@ -18,6 +18,9 @@ int takeoff_channel = 0;
 
 mavros_msgs::State current_state;
 Eigen::Vector3d local_position = Eigen::Vector3d::Zero();
+Eigen::Vector3d local_velocity = Eigen::Vector3d::Zero();
+Eigen::Quaterniond local_attitude = Eigen::Quaterniond::Identity();
+bool feedback_ready = false;
 geometry_msgs::PoseStamped position_setpoint;
 mavros_msgs::AttitudeTarget attitude_setpoint;
 
@@ -39,6 +42,13 @@ void PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &message)
         message->pose.position.x,
         message->pose.position.y,
         message->pose.position.z);
+    local_attitude = Eigen::Quaterniond(message->pose.orientation.w, message->pose.orientation.x, message->pose.orientation.y, message->pose.orientation.z).normalized();
+}
+
+void VelocityCallback(const geometry_msgs::TwistStamped::ConstPtr &message)
+{
+    local_velocity = Eigen::Vector3d(message->twist.linear.x, message->twist.linear.y, message->twist.linear.z);
+    feedback_ready = true;
 }
 
 void RcCallback(const mavros_msgs::RCIn::ConstPtr &message)
@@ -156,6 +166,9 @@ int main(int argc, char **argv)
     const ros::Subscriber position_subscriber =
         node.subscribe<geometry_msgs::PoseStamped>(
             "/mavros/local_position/pose", 10, PoseCallback);
+    const ros::Subscriber velocity_subscriber =
+        node.subscribe<geometry_msgs::TwistStamped>(
+            "/mavros/local_position/velocity_local", 10, VelocityCallback);
     const ros::Subscriber rc_subscriber =
         node.subscribe<mavros_msgs::RCIn>(
             "/mavros/rc/in", 10, RcCallback);
@@ -173,6 +186,26 @@ int main(int argc, char **argv)
 
     SetPosition(0.0, 0.0, kInitialHeight);
     position_setpoint.pose.orientation.w = 1.0;
+
+    Eigen::Vector3f qpos(100.0f, 100.0f, 70.0f), qvel(4.0f, 4.0f, 2.0f);
+    Eigen::Vector3f qquat(1.0f, 1.0f, 10.0f), rw(0.45f, 0.85f, 0.45f);
+    NMPC_Ctrller_simple nmpc(0.02, {{0.0, 15.0}}, {{-3.14, 3.14}}, 8, 0.05,
+        10, 4, qpos, qvel, qquat, rw, 0.15, 0.50);
+    const auto nmpc_hover = [&](double height) {
+        if (!feedback_ready) return false;
+        std::vector<double> current{local_position.x(), local_position.y(), local_position.z(), local_velocity.x(), local_velocity.y(), local_velocity.z(), local_attitude.w(), local_attitude.x(), local_attitude.y(), local_attitude.z()};
+        std::vector<double> desired;
+        for (int i = 0; i < 9; ++i) desired.insert(desired.end(), {0.0, 0.0, height, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0});
+        for (int i = 0; i < 8; ++i) desired.insert(desired.end(), {0.0, 0.0, 0.0, 9.8015});
+        try { nmpc.optimal_solution(current, desired); }
+        catch (const std::exception &e) { ROS_ERROR_THROTTLE(1.0, "NMPC failed: %s", e.what()); return false; }
+        const Eigen::Vector3d rates = nmpc.getwCommand();
+        attitude_setpoint.header.stamp = ros::Time::now();
+        attitude_setpoint.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
+        attitude_setpoint.body_rate.x = rates.x(); attitude_setpoint.body_rate.y = rates.y(); attitude_setpoint.body_rate.z = rates.z();
+        attitude_setpoint.thrust = std::max(0.0, std::min(1.0, nmpc.getAcc_zCommand()));
+        attitude_publisher.publish(attitude_setpoint); return true;
+    };
 
     std::thread(ListenForUdpCommands, kUdpPort).detach();
 
@@ -218,8 +251,7 @@ int main(int argc, char **argv)
                 offboard_mode,
                 arm_command,
                 last_request);
-            SetPosition(0.0, 0.0, 1.0);
-            position_publisher.publish(position_setpoint);
+            if (!nmpc_hover(1.0)) { SetPosition(0.0, 0.0, 1.0); position_publisher.publish(position_setpoint); }
             break;
 
         case 3:
@@ -229,8 +261,7 @@ int main(int argc, char **argv)
                 offboard_mode,
                 arm_command,
                 last_request);
-                SetPosition(0.0, 0.0, 0.4);
-                position_publisher.publish(position_setpoint);
+            if (!nmpc_hover(0.4)) { SetPosition(0.0, 0.0, 0.4); position_publisher.publish(position_setpoint); }
             break;
 
         case 4:
