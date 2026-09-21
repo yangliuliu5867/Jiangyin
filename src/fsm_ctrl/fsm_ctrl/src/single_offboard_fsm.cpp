@@ -211,6 +211,24 @@ int main(int argc, char **argv)
         attitude_setpoint.thrust = nmpc.getAcc_zCommand();
         attitude_publisher.publish(attitude_setpoint);
     };
+    const auto nmpc_figure_eight = [&](int step) {
+        std::vector<double> current{local_position.x(), local_position.y(), local_position.z(), local_velocity.x(), local_velocity.y(), local_velocity.z(), local_attitude.w(), local_attitude.x(), local_attitude.y(), local_attitude.z()};
+        std::vector<double> desired;
+        for (int i = 0; i < 9; ++i) {
+            const double phase = step * 0.02 + i * 0.05;
+            desired.insert(desired.end(), {0.75 * std::sin(phase), 0.375 * std::sin(2.0 * phase), 1.0,
+                                           0.75 * std::cos(phase), 0.75 * std::cos(2.0 * phase), 0.0,
+                                           1.0, 0.0, 0.0, 0.0});
+        }
+        for (int i = 0; i < 8; ++i) desired.insert(desired.end(), {0.0, 0.0, 0.0, 9.8015});
+        nmpc.optimal_solution(current, desired);
+        const Eigen::Vector3d rates = nmpc.getwCommand();
+        attitude_setpoint.header.frame_id = "FCU";
+        attitude_setpoint.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
+        attitude_setpoint.body_rate.x = rates.x(); attitude_setpoint.body_rate.y = rates.y(); attitude_setpoint.body_rate.z = rates.z();
+        attitude_setpoint.thrust = nmpc.getAcc_zCommand();
+        attitude_publisher.publish(attitude_setpoint);
+    };
 
     std::thread(ListenForUdpCommands, kUdpPort).detach();
 
@@ -330,6 +348,17 @@ int main(int argc, char **argv)
             trajectory_step = (trajectory_step + 1) % 800;
             break;
         }
+
+        case 10:
+            RequestOffboardAndArm(
+                set_mode_client,
+                arming_client,
+                offboard_mode,
+                arm_command,
+                last_request);
+            nmpc_figure_eight(trajectory_step);
+            trajectory_step = (trajectory_step + 1) % 315;
+            break;
 
         default:
             break;
