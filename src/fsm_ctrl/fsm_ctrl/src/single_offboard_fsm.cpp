@@ -294,6 +294,17 @@ int main(int argc, char **argv)
             break;
         }
 
+        case 10:
+        {
+            // Horizontal figure-eight: x = 0.75 sin(t), y = 0.375 sin(2t).
+            const double phase = 0.02 * trajectory_step;
+            SetPosition(0.75 * std::sin(phase),
+                        0.375 * std::sin(2.0 * phase), 1.0);
+            position_publisher.publish(position_setpoint);
+            trajectory_step = (trajectory_step + 1) % 315;
+            break;
+        }
+
         default:
             break;
         }
