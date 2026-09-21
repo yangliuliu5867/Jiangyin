@@ -20,7 +20,6 @@ mavros_msgs::State current_state;
 Eigen::Vector3d local_position = Eigen::Vector3d::Zero();
 Eigen::Vector3d local_velocity = Eigen::Vector3d::Zero();
 Eigen::Quaterniond local_attitude = Eigen::Quaterniond::Identity();
-bool feedback_ready = false;
 geometry_msgs::PoseStamped position_setpoint;
 mavros_msgs::AttitudeTarget attitude_setpoint;
 
@@ -42,13 +41,12 @@ void PoseCallback(const geometry_msgs::PoseStamped::ConstPtr &message)
         message->pose.position.x,
         message->pose.position.y,
         message->pose.position.z);
-    local_attitude = Eigen::Quaterniond(message->pose.orientation.w, message->pose.orientation.x, message->pose.orientation.y, message->pose.orientation.z).normalized();
+    local_attitude = Eigen::Quaterniond(message->pose.orientation.w, message->pose.orientation.x, message->pose.orientation.y, message->pose.orientation.z);
 }
 
 void VelocityCallback(const geometry_msgs::TwistStamped::ConstPtr &message)
 {
     local_velocity = Eigen::Vector3d(message->twist.linear.x, message->twist.linear.y, message->twist.linear.z);
-    feedback_ready = true;
 }
 
 void RcCallback(const mavros_msgs::RCIn::ConstPtr &message)
@@ -188,9 +186,9 @@ int main(int argc, char **argv)
     position_setpoint.pose.orientation.w = 1.0;
 
     ros::NodeHandle private_node("~");
-    double qpx = 20.0, qpy = 20.0, qpz = 50.0, qvx = 1.0, qvy = 1.0, qvz = 1.0;
-    double qqx = 1.0, qqy = 1.0, qqz = 1.0, rwx = 0.3, rwy = 0.3, rwz = 0.3;
-    double rthrust = 0.1, hover_thrust = 0.4;
+    double qpx = 1.0, qpy = 1.0, qpz = 1.0, qvx = 1.0, qvy = 1.0, qvz = 1.0;
+    double qqx = 1.0, qqy = 1.0, qqz = 1.0, rwx = 1.0, rwy = 1.0, rwz = 1.0;
+    double rthrust = 1.0, hover_thrust = 0.196;
     private_node.param("nmpc_Qposx", qpx, qpx); private_node.param("nmpc_Qposy", qpy, qpy); private_node.param("nmpc_Qposz", qpz, qpz);
     private_node.param("nmpc_Qvelx", qvx, qvx); private_node.param("nmpc_Qvely", qvy, qvy); private_node.param("nmpc_Qvelz", qvz, qvz);
     private_node.param("nmpc_Qquatx", qqx, qqx); private_node.param("nmpc_Qquaty", qqy, qqy); private_node.param("nmpc_Qquatz", qqz, qqz);
@@ -200,20 +198,18 @@ int main(int argc, char **argv)
     Eigen::Vector3f qquat(qqx, qqy, qqz), rw(rwx, rwy, rwz);
     NMPC_Ctrller_simple nmpc(0.02, {{0.0, 15.0}}, {{-3.14, 3.14}}, 8, 0.05,
         10, 4, qpos, qvel, qquat, rw, rthrust, hover_thrust);
-    const auto nmpc_hover = [&](double height) {
-        if (!feedback_ready) return false;
+    const auto nmpc_hover = [&]() {
         std::vector<double> current{local_position.x(), local_position.y(), local_position.z(), local_velocity.x(), local_velocity.y(), local_velocity.z(), local_attitude.w(), local_attitude.x(), local_attitude.y(), local_attitude.z()};
         std::vector<double> desired;
-        for (int i = 0; i < 9; ++i) desired.insert(desired.end(), {0.0, 0.0, height, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0});
+        for (int i = 0; i < 9; ++i) desired.insert(desired.end(), {0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0});
         for (int i = 0; i < 8; ++i) desired.insert(desired.end(), {0.0, 0.0, 0.0, 9.8015});
-        try { nmpc.optimal_solution(current, desired); }
-        catch (const std::exception &e) { ROS_ERROR_THROTTLE(1.0, "NMPC failed: %s", e.what()); return false; }
+        nmpc.optimal_solution(current, desired);
         const Eigen::Vector3d rates = nmpc.getwCommand();
-        attitude_setpoint.header.stamp = ros::Time::now();
+        attitude_setpoint.header.frame_id = "FCU";
         attitude_setpoint.type_mask = mavros_msgs::AttitudeTarget::IGNORE_ATTITUDE;
         attitude_setpoint.body_rate.x = rates.x(); attitude_setpoint.body_rate.y = rates.y(); attitude_setpoint.body_rate.z = rates.z();
-        attitude_setpoint.thrust = std::max(0.0, std::min(1.0, nmpc.getAcc_zCommand()));
-        attitude_publisher.publish(attitude_setpoint); return true;
+        attitude_setpoint.thrust = nmpc.getAcc_zCommand();
+        attitude_publisher.publish(attitude_setpoint);
     };
 
     std::thread(ListenForUdpCommands, kUdpPort).detach();
@@ -260,7 +256,8 @@ int main(int argc, char **argv)
                 offboard_mode,
                 arm_command,
                 last_request);
-            if (!nmpc_hover(1.0)) { SetPosition(0.0, 0.0, 1.0); position_publisher.publish(position_setpoint); }
+            SetPosition(0.0, 0.0, 1.0);
+            position_publisher.publish(position_setpoint);
             break;
 
         case 3:
@@ -270,7 +267,7 @@ int main(int argc, char **argv)
                 offboard_mode,
                 arm_command,
                 last_request);
-            if (!nmpc_hover(0.4)) { SetPosition(0.0, 0.0, 0.4); position_publisher.publish(position_setpoint); }
+            nmpc_hover();
             break;
 
         case 4:

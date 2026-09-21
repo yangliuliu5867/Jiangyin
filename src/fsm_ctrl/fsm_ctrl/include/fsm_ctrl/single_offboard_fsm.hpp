@@ -2,7 +2,6 @@
 #define FSM_CTRL_SINGLE_OFFBOARD_FSM_HPP_
 
 #include <atomic>
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
