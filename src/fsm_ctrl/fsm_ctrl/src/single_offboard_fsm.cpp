@@ -187,10 +187,19 @@ int main(int argc, char **argv)
     SetPosition(0.0, 0.0, kInitialHeight);
     position_setpoint.pose.orientation.w = 1.0;
 
-    Eigen::Vector3f qpos(100.0f, 100.0f, 70.0f), qvel(4.0f, 4.0f, 2.0f);
-    Eigen::Vector3f qquat(1.0f, 1.0f, 10.0f), rw(0.45f, 0.85f, 0.45f);
+    ros::NodeHandle private_node("~");
+    double qpx = 20.0, qpy = 20.0, qpz = 50.0, qvx = 1.0, qvy = 1.0, qvz = 1.0;
+    double qqx = 1.0, qqy = 1.0, qqz = 1.0, rwx = 0.3, rwy = 0.3, rwz = 0.3;
+    double rthrust = 0.1, hover_thrust = 0.4;
+    private_node.param("nmpc_Qposx", qpx, qpx); private_node.param("nmpc_Qposy", qpy, qpy); private_node.param("nmpc_Qposz", qpz, qpz);
+    private_node.param("nmpc_Qvelx", qvx, qvx); private_node.param("nmpc_Qvely", qvy, qvy); private_node.param("nmpc_Qvelz", qvz, qvz);
+    private_node.param("nmpc_Qquatx", qqx, qqx); private_node.param("nmpc_Qquaty", qqy, qqy); private_node.param("nmpc_Qquatz", qqz, qqz);
+    private_node.param("nmpc_Rwx", rwx, rwx); private_node.param("nmpc_Rwy", rwy, rwy); private_node.param("nmpc_Rwz", rwz, rwz);
+    private_node.param("nmpc_RtotalF", rthrust, rthrust); private_node.param("nmpc_hover_thrust", hover_thrust, hover_thrust);
+    Eigen::Vector3f qpos(qpx, qpy, qpz), qvel(qvx, qvy, qvz);
+    Eigen::Vector3f qquat(qqx, qqy, qqz), rw(rwx, rwy, rwz);
     NMPC_Ctrller_simple nmpc(0.02, {{0.0, 15.0}}, {{-3.14, 3.14}}, 8, 0.05,
-        10, 4, qpos, qvel, qquat, rw, 0.15, 0.50);
+        10, 4, qpos, qvel, qquat, rw, rthrust, hover_thrust);
     const auto nmpc_hover = [&](double height) {
         if (!feedback_ready) return false;
         std::vector<double> current{local_position.x(), local_position.y(), local_position.z(), local_velocity.x(), local_velocity.y(), local_velocity.z(), local_attitude.w(), local_attitude.x(), local_attitude.y(), local_attitude.z()};
