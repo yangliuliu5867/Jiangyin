@@ -157,6 +157,12 @@ int main(int argc, char **argv)
     const ros::Publisher attitude_publisher =
         node.advertise<mavros_msgs::AttitudeTarget>(
             "/mavros/setpoint_raw/attitude", 10);
+    const ros::Publisher trajectory_reference_publisher =
+        node.advertise<geometry_msgs::PoseStamped>(
+            "/single_offboard_fsm/trajectory_reference", 10);
+    const ros::Publisher trajectory_reference_velocity_publisher =
+        node.advertise<geometry_msgs::TwistStamped>(
+            "/single_offboard_fsm/trajectory_reference_velocity", 10);
 
     const ros::Subscriber state_subscriber =
         node.subscribe<mavros_msgs::State>(
@@ -349,7 +355,7 @@ int main(int argc, char **argv)
             break;
         }
 
-        case 10:
+        case 7:
             RequestOffboardAndArm(
                 set_mode_client,
                 arming_client,
@@ -357,6 +363,21 @@ int main(int argc, char **argv)
                 arm_command,
                 last_request);
             nmpc_figure_eight(trajectory_step);
+            {
+                const double phase = 0.02 * trajectory_step;
+                geometry_msgs::PoseStamped reference_pose;
+                geometry_msgs::TwistStamped reference_velocity;
+                reference_pose.header.stamp = reference_velocity.header.stamp = ros::Time::now();
+                reference_pose.header.frame_id = reference_velocity.header.frame_id = "map";
+                reference_pose.pose.position.x = 0.75 * std::sin(phase);
+                reference_pose.pose.position.y = 0.375 * std::sin(2.0 * phase);
+                reference_pose.pose.position.z = 1.0;
+                reference_pose.pose.orientation.w = 1.0;
+                reference_velocity.twist.linear.x = 0.75 * std::cos(phase);
+                reference_velocity.twist.linear.y = 0.75 * std::cos(2.0 * phase);
+                trajectory_reference_publisher.publish(reference_pose);
+                trajectory_reference_velocity_publisher.publish(reference_velocity);
+            }
             trajectory_step = (trajectory_step + 1) % 315;
             break;
 

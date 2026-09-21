@@ -91,5 +91,5 @@
         "core": "cpp",
         "numericaldiff": "cpp"
     },
-    "cmake.sourceDirectory": "/home/uav-qkyang/Jiangyin2025/src/SUPER/mars_uav_sim/mars_super_msgs"
+    "cmake.sourceDirectory": "/Users/yyx/Documents/Jiangyin/src/ctrl_math"
 }
