@@ -6,6 +6,8 @@
 
 		<!-- 0: mocap  1: lidar  2: camera -->
 		<param name="vision_source" value="1" type="int"/>
+		<!-- MID360 is pitched downward relative to the FCU body frame. -->
+		<param name="lidar_to_body_pitch_deg" value="-25.3" type="double"/>
 		
 		<remap from="~lidar_odom" to="/aft_mapped_to_init"/>
 		<remap from="~mocap_pose" to="/vrpn_client_node/catch/pose"/>
