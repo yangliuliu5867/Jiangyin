@@ -13,7 +13,18 @@ find_package(catkin REQUIRED COMPONENTS
   ctrl_math
 )
 find_package(Eigen3 REQUIRED)
-find_package(casadi CONFIG REQUIRED)
+find_package(casadi CONFIG QUIET)
+if(NOT TARGET casadi::casadi)
+  find_path(CASADI_INCLUDE_DIR NAMES casadi/casadi.hpp PATHS /usr/local/include)
+  find_library(CASADI_LIBRARY NAMES casadi PATHS /usr/local/lib)
+  if(NOT CASADI_INCLUDE_DIR OR NOT CASADI_LIBRARY)
+    message(FATAL_ERROR "CasADi was not found. Install it or set casadi_DIR.")
+  endif()
+  add_library(casadi::casadi UNKNOWN IMPORTED)
+  set_target_properties(casadi::casadi PROPERTIES
+    IMPORTED_LOCATION "${CASADI_LIBRARY}"
+    INTERFACE_INCLUDE_DIRECTORIES "${CASADI_INCLUDE_DIR}")
+endif()
 
 add_message_files(
   FILES
