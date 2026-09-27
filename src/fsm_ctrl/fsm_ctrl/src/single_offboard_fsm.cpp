@@ -258,7 +258,7 @@ int main(int argc, char **argv)
         std::vector<double> desired;
         for (int i = 0; i < 9; ++i) {
             const double phase = step * 0.02 + i * 0.05;
-            desired.insert(desired.end(), {0.75 * std::sin(phase), 0.375 * std::sin(2.0 * phase), 1.0,
+            desired.insert(desired.end(), {0.75 * std::sin(phase), 0.375 * std::sin(2.0 * phase), 0.5,
                                            0.75 * std::cos(phase), 0.75 * std::cos(2.0 * phase), 0.0,
                                            1.0, 0.0, 0.0, 0.0});
         }
