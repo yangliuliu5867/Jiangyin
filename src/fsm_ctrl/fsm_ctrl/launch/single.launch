@@ -9,17 +9,17 @@
     </include>
 
     <node pkg="fsm_ctrl" type="single_offboard_fsm" name="single_offboard_fsm" output="screen">
-        <param name="nmpc_Qposx" type="double" value="20.0"/>
-        <param name="nmpc_Qposy" type="double" value="20.0"/>
-        <param name="nmpc_Qposz" type="double" value="50.0"/>
+        <param name="nmpc_Qposx" type="double" value="50.0"/>
+        <param name="nmpc_Qposy" type="double" value="50.0"/>
+        <param name="nmpc_Qposz" type="double" value="80.0"/>
         <param name="nmpc_Qvelx" type="double" value="4.0"/>
         <param name="nmpc_Qvely" type="double" value="4.0"/>
         <param name="nmpc_Qvelz" type="double" value="3.0"/>
         <param name="nmpc_Qquatx" type="double" value="1.0"/>
         <param name="nmpc_Qquaty" type="double" value="1.0"/>
         <param name="nmpc_Qquatz" type="double" value="1.0"/>
-        <param name="nmpc_Rwx" type="double" value="0.5"/>
-        <param name="nmpc_Rwy" type="double" value="0.5"/>
+        <param name="nmpc_Rwx" type="double" value="0.9"/>
+        <param name="nmpc_Rwy" type="double" value="0.9"/>
         <param name="nmpc_Rwz" type="double" value="0.5"/>
         <param name="nmpc_RtotalF" type="double" value="0.1"/>
         <param name="nmpc_hover_thrust" type="double" value="0.48"/>
