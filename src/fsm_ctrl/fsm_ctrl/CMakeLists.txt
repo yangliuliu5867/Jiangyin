@@ -15,6 +15,11 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Eigen3 REQUIRED)
 find_package(casadi CONFIG REQUIRED)
 
+add_message_files(
+  FILES
+  nmpc_state.msg
+)
+
 generate_messages(
   DEPENDENCIES
   geometry_msgs
@@ -24,7 +29,7 @@ generate_messages(
 
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS geometry_msgs roscpp std_msgs tf message_runtime
+  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp std_msgs tf message_runtime
 )
 
 include_directories(
@@ -40,6 +45,10 @@ add_executable(single_offboard_fsm
 target_link_libraries(single_offboard_fsm
   ${catkin_LIBRARIES}
   casadi::casadi
+)
+add_dependencies(single_offboard_fsm
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+  ${catkin_EXPORTED_TARGETS}
 )
 
 add_executable(px4_estimator

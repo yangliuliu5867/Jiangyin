@@ -22,5 +22,6 @@
 #include <mavros_msgs/State.h>
 #include <ros/ros.h>
 #include <fsm_ctrl/NMPC_Controller.hpp>
+#include <fsm_ctrl/nmpc_state.h>
 
 #endif  // FSM_CTRL_SINGLE_OFFBOARD_FSM_HPP_

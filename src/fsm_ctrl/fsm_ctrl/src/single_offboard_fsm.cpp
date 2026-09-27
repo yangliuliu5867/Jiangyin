@@ -163,6 +163,8 @@ int main(int argc, char **argv)
     const ros::Publisher trajectory_reference_velocity_publisher =
         node.advertise<geometry_msgs::TwistStamped>(
             "/single_offboard_fsm/trajectory_reference_velocity", 10);
+    const ros::Publisher nmpc_state_publisher =
+        node.advertise<fsm_ctrl::nmpc_state>("/nmpc_state", 10);
 
     const ros::Subscriber state_subscriber =
         node.subscribe<mavros_msgs::State>(
@@ -204,6 +206,39 @@ int main(int argc, char **argv)
     Eigen::Vector3f qquat(qqx, qqy, qqz), rw(rwx, rwy, rwz);
     NMPC_Ctrller_simple nmpc(0.02, {{0.0, 15.0}}, {{-3.14, 3.14}}, 8, 0.05,
         10, 4, qpos, qvel, qquat, rw, rthrust, hover_thrust);
+    const auto publish_nmpc_state = [&](const std::vector<double> &desired) {
+        fsm_ctrl::nmpc_state message;
+        constexpr int kPredictionNodes = 9;
+        constexpr int kStateSize = 10;
+
+        for (int i = 0; i < kPredictionNodes; ++i)
+        {
+            const int offset = i * kStateSize;
+            message.pos_ref[i].x = desired[offset];
+            message.pos_ref[i].y = desired[offset + 1];
+            message.pos_ref[i].z = desired[offset + 2];
+            message.vel_ref[i].x = desired[offset + 3];
+            message.vel_ref[i].y = desired[offset + 4];
+            message.vel_ref[i].z = desired[offset + 5];
+        }
+
+        message.pos_fdb.x = local_position.x();
+        message.pos_fdb.y = local_position.y();
+        message.pos_fdb.z = local_position.z();
+        message.vel_fdb.x = local_velocity.x();
+        message.vel_fdb.y = local_velocity.y();
+        message.vel_fdb.z = local_velocity.z();
+        message.attitude_fdb.w = local_attitude.w();
+        message.attitude_fdb.x = local_attitude.x();
+        message.attitude_fdb.y = local_attitude.y();
+        message.attitude_fdb.z = local_attitude.z();
+        message.attitude_ref.w = desired[6];
+        message.attitude_ref.x = desired[7];
+        message.attitude_ref.y = desired[8];
+        message.attitude_ref.z = desired[9];
+        message.target = attitude_setpoint;
+        nmpc_state_publisher.publish(message);
+    };
     const auto nmpc_hover = [&]() {
         std::vector<double> current{local_position.x(), local_position.y(), local_position.z(), local_velocity.x(), local_velocity.y(), local_velocity.z(), local_attitude.w(), local_attitude.x(), local_attitude.y(), local_attitude.z()};
         std::vector<double> desired;
@@ -216,6 +251,7 @@ int main(int argc, char **argv)
         attitude_setpoint.body_rate.x = rates.x(); attitude_setpoint.body_rate.y = rates.y(); attitude_setpoint.body_rate.z = rates.z();
         attitude_setpoint.thrust = nmpc.getAcc_zCommand();
         attitude_publisher.publish(attitude_setpoint);
+        publish_nmpc_state(desired);
     };
     const auto nmpc_figure_eight = [&](int step) {
         std::vector<double> current{local_position.x(), local_position.y(), local_position.z(), local_velocity.x(), local_velocity.y(), local_velocity.z(), local_attitude.w(), local_attitude.x(), local_attitude.y(), local_attitude.z()};
@@ -234,6 +270,7 @@ int main(int argc, char **argv)
         attitude_setpoint.body_rate.x = rates.x(); attitude_setpoint.body_rate.y = rates.y(); attitude_setpoint.body_rate.z = rates.z();
         attitude_setpoint.thrust = nmpc.getAcc_zCommand();
         attitude_publisher.publish(attitude_setpoint);
+        publish_nmpc_state(desired);
     };
 
     std::thread(ListenForUdpCommands, kUdpPort).detach();
@@ -371,7 +408,7 @@ int main(int argc, char **argv)
                 reference_pose.header.frame_id = reference_velocity.header.frame_id = "map";
                 reference_pose.pose.position.x = 0.75 * std::sin(phase);
                 reference_pose.pose.position.y = 0.375 * std::sin(2.0 * phase);
-                reference_pose.pose.position.z = 1.0;
+                reference_pose.pose.position.z = 0.5;
                 reference_pose.pose.orientation.w = 1.0;
                 reference_velocity.twist.linear.x = 0.75 * std::cos(phase);
                 reference_velocity.twist.linear.y = 0.75 * std::cos(2.0 * phase);
