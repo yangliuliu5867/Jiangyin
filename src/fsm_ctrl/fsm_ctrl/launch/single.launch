@@ -23,5 +23,11 @@
         <param name="nmpc_Rwz" type="double" value="0.5"/>
         <param name="nmpc_RtotalF" type="double" value="0.1"/>
         <param name="nmpc_hover_thrust" type="double" value="0.48"/>
+        <!-- Bounded low-frequency XY correction shared by all NMPC modes. -->
+        <param name="nmpc_enable_xy_integral" type="bool" value="true"/>
+        <param name="nmpc_xy_integral_gain" type="double" value="0.08"/>
+        <param name="nmpc_xy_integral_limit" type="double" value="0.10"/>
+        <param name="nmpc_xy_integral_leak" type="double" value="0.01"/>
+        <param name="nmpc_xy_integral_max_error" type="double" value="0.30"/>
     </node>
 </launch>

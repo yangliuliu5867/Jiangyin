@@ -197,11 +197,21 @@ int main(int argc, char **argv)
     double qpx = 1.0, qpy = 1.0, qpz = 1.0, qvx = 1.0, qvy = 1.0, qvz = 1.0;
     double qqx = 1.0, qqy = 1.0, qqz = 1.0, rwx = 1.0, rwy = 1.0, rwz = 1.0;
     double rthrust = 1.0, hover_thrust = 0.196;
+    bool enable_xy_integral = true;
+    double xy_integral_gain = 0.08;
+    double xy_integral_limit = 0.10;
+    double xy_integral_leak = 0.01;
+    double xy_integral_max_error = 0.30;
     private_node.param("nmpc_Qposx", qpx, qpx); private_node.param("nmpc_Qposy", qpy, qpy); private_node.param("nmpc_Qposz", qpz, qpz);
     private_node.param("nmpc_Qvelx", qvx, qvx); private_node.param("nmpc_Qvely", qvy, qvy); private_node.param("nmpc_Qvelz", qvz, qvz);
     private_node.param("nmpc_Qquatx", qqx, qqx); private_node.param("nmpc_Qquaty", qqy, qqy); private_node.param("nmpc_Qquatz", qqz, qqz);
     private_node.param("nmpc_Rwx", rwx, rwx); private_node.param("nmpc_Rwy", rwy, rwy); private_node.param("nmpc_Rwz", rwz, rwz);
     private_node.param("nmpc_RtotalF", rthrust, rthrust); private_node.param("nmpc_hover_thrust", hover_thrust, hover_thrust);
+    private_node.param("nmpc_enable_xy_integral", enable_xy_integral, enable_xy_integral);
+    private_node.param("nmpc_xy_integral_gain", xy_integral_gain, xy_integral_gain);
+    private_node.param("nmpc_xy_integral_limit", xy_integral_limit, xy_integral_limit);
+    private_node.param("nmpc_xy_integral_leak", xy_integral_leak, xy_integral_leak);
+    private_node.param("nmpc_xy_integral_max_error", xy_integral_max_error, xy_integral_max_error);
     Eigen::Vector3f qpos(qpx, qpy, qpz), qvel(qvx, qvy, qvz);
     Eigen::Vector3f qquat(qqx, qqy, qqz), rw(rwx, rwy, rwz);
     NMPC_Ctrller_simple nmpc(0.02, {{0.0, 15.0}}, {{-3.14, 3.14}}, 8, 0.05,
@@ -239,10 +249,47 @@ int main(int argc, char **argv)
         message.target = attitude_setpoint;
         nmpc_state_publisher.publish(message);
     };
+    // This is a bounded low-frequency position correction, in metres.  It is
+    // shared by every NMPC mode so a constant localization or disturbance bias
+    // is removed without changing the trajectory shape or speed.
+    Eigen::Vector2d xy_integral_correction = Eigen::Vector2d::Zero();
+    ros::Time xy_integral_last_update;
+    const auto reset_xy_integral = [&]() {
+        xy_integral_correction.setZero();
+        xy_integral_last_update = ros::Time();
+    };
+    const auto update_xy_integral = [&](const Eigen::Vector2d &position_reference) {
+        const ros::Time now = ros::Time::now();
+        if (xy_integral_last_update.isZero())
+        {
+            xy_integral_last_update = now;
+            return;
+        }
+
+        const double dt = (now - xy_integral_last_update).toSec();
+        xy_integral_last_update = now;
+        if (dt <= 0.0 || dt > 0.10)
+        {
+            return;
+        }
+
+        // Freeze integration outside this band so takeoff, a large tracking
+        // transient, or a bad localization sample cannot wind it up.
+        const Eigen::Vector2d position_error =
+            position_reference - local_position.head<2>();
+        if (enable_xy_integral && position_error.norm() <= xy_integral_max_error)
+        {
+            xy_integral_correction += xy_integral_gain * position_error * dt;
+        }
+        xy_integral_correction *= std::max(0.0, 1.0 - xy_integral_leak * dt);
+        xy_integral_correction.x() = std::max(-xy_integral_limit, std::min(xy_integral_limit, xy_integral_correction.x()));
+        xy_integral_correction.y() = std::max(-xy_integral_limit, std::min(xy_integral_limit, xy_integral_correction.y()));
+    };
     const auto nmpc_hover = [&]() {
+        update_xy_integral(Eigen::Vector2d::Zero());
         std::vector<double> current{local_position.x(), local_position.y(), local_position.z(), local_velocity.x(), local_velocity.y(), local_velocity.z(), local_attitude.w(), local_attitude.x(), local_attitude.y(), local_attitude.z()};
         std::vector<double> desired;
-        for (int i = 0; i < 9; ++i) desired.insert(desired.end(), {0.0, 0.0, 0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0});
+        for (int i = 0; i < 9; ++i) desired.insert(desired.end(), {xy_integral_correction.x(), xy_integral_correction.y(), 0.5, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0});
         for (int i = 0; i < 8; ++i) desired.insert(desired.end(), {0.0, 0.0, 0.0, 9.8015});
         nmpc.optimal_solution(current, desired);
         const Eigen::Vector3d rates = nmpc.getwCommand();
@@ -254,11 +301,16 @@ int main(int argc, char **argv)
         publish_nmpc_state(desired);
     };
     const auto nmpc_figure_eight = [&](int step) {
+        const double current_phase = step * 0.02;
+        update_xy_integral(Eigen::Vector2d(
+            0.75 * std::sin(current_phase),
+            0.375 * std::sin(2.0 * current_phase)));
         std::vector<double> current{local_position.x(), local_position.y(), local_position.z(), local_velocity.x(), local_velocity.y(), local_velocity.z(), local_attitude.w(), local_attitude.x(), local_attitude.y(), local_attitude.z()};
         std::vector<double> desired;
         for (int i = 0; i < 9; ++i) {
             const double phase = step * 0.02 + i * 0.05;
-            desired.insert(desired.end(), {0.75 * std::sin(phase), 0.375 * std::sin(2.0 * phase), 0.5,
+            desired.insert(desired.end(), {0.75 * std::sin(phase) + xy_integral_correction.x(),
+                                           0.375 * std::sin(2.0 * phase) + xy_integral_correction.y(), 0.5,
                                            0.75 * std::cos(phase), 0.75 * std::cos(2.0 * phase), 0.0,
                                            1.0, 0.0, 0.0, 0.0});
         }
@@ -285,12 +337,19 @@ int main(int argc, char **argv)
 
     ros::Time last_request = ros::Time::now();
     int trajectory_step = 0;
+    int previous_command = 0;
 
     while (ros::ok())
     {
         ros::spinOnce();
+        const int active_command = command.load(std::memory_order_relaxed);
+        if (active_command != previous_command)
+        {
+            reset_xy_integral();
+            previous_command = active_command;
+        }
 
-        switch (command.load(std::memory_order_relaxed))
+        switch (active_command)
         {
         case 1:
             RequestOffboardAndArm(
@@ -406,8 +465,8 @@ int main(int argc, char **argv)
                 geometry_msgs::TwistStamped reference_velocity;
                 reference_pose.header.stamp = reference_velocity.header.stamp = ros::Time::now();
                 reference_pose.header.frame_id = reference_velocity.header.frame_id = "map";
-                reference_pose.pose.position.x = 0.75 * std::sin(phase);
-                reference_pose.pose.position.y = 0.375 * std::sin(2.0 * phase);
+                reference_pose.pose.position.x = 0.75 * std::sin(phase) + xy_integral_correction.x();
+                reference_pose.pose.position.y = 0.375 * std::sin(2.0 * phase) + xy_integral_correction.y();
                 reference_pose.pose.position.z = 0.5;
                 reference_pose.pose.orientation.w = 1.0;
                 reference_velocity.twist.linear.x = 0.75 * std::cos(phase);
